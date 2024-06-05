@@ -74,26 +74,26 @@ func urlProcessor(w http.ResponseWriter, r *http.Request) {
 
 // Обработка GET
 func serveGet(w http.ResponseWriter, r *http.Request) {
-	fullUrl, err := getFullUrl(r)
+	fullURL, err := getFullURL(r)
 	if err != nil {
 		log.Printf("%s", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	w.Header().Set("Location", fullUrl)
+	w.Header().Set("Location", fullURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 // Получение полного Url если есть соответствие в условной "базе"
-func getFullUrl(r *http.Request) (string, error) {
-	shortKeyFromUrl := strings.TrimLeft(string(r.URL.Path), "/")
-	if fullUrl := findValueByKeyInMap(shortKeyFromUrl, storage); fullUrl != "" {
-		return fullUrl, nil
+func getFullURL(r *http.Request) (string, error) {
+	shortKeyFromURL := strings.TrimLeft(string(r.URL.Path), "/")
+	if fullURL := findValueByKeyInMap(shortKeyFromURL, storage); fullURL != "" {
+		return fullURL, nil
 
 	}
 
-	return "", fmt.Errorf("short url not found for key: %s", shortKeyFromUrl)
+	return "", fmt.Errorf("short url not found for key: %s", shortKeyFromURL)
 }
 
 // Поиск значения по ключу
@@ -112,22 +112,22 @@ func findValueByKeyInMap(needle string, storage map[string]string) string {
 
 // Обработка POST
 func servePost(w http.ResponseWriter, r *http.Request) {
-	body, err := getUrlToShort(r.Body)
+	body, err := getURLToShort(r.Body)
 	if err != nil {
 		log.Printf("%s", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	shortUrl := getShortUrl(body)
+	shortURL := getShortURL(body)
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(shortUrl))
+	w.Write([]byte(shortURL))
 }
 
 // Получение и проверка валидности Url
-func getUrlToShort(buffer io.ReadCloser) (string, error) {
+func getURLToShort(buffer io.ReadCloser) (string, error) {
 	body, err := io.ReadAll(buffer)
 	if err != nil {
 		return "", fmt.Errorf("error while reading POST body: %w", err)
@@ -146,18 +146,18 @@ func getUrlToShort(buffer io.ReadCloser) (string, error) {
 }
 
 // Получение Url с сокращением если есть в условной "базе", генерация нового если в "базе" нет
-func getShortUrl(urlToShort string) string {
+func getShortURL(urlToShort string) string {
 	if shortKey := findKeyByValueInMap(urlToShort, storage); shortKey != "" {
-		return getFormattedUrl(shortKey)
+		return getFormattedURL(shortKey)
 	}
 
 	shortKey := getRandkey(keyLength)
 	storage[shortKey] = urlToShort
-	shortUrl := getFormattedUrl(shortKey)
+	shortURL := getFormattedURL(shortKey)
 
 	log.Printf("generated and saved new shorten key for %s: %s", urlToShort, shortKey)
 
-	return shortUrl
+	return shortURL
 }
 
 // Поиск ключа по значению
@@ -175,7 +175,7 @@ func findKeyByValueInMap(needle string, storage map[string]string) string {
 }
 
 // Шаблон сокращенного Url
-func getFormattedUrl(shortKey string) string {
+func getFormattedURL(shortKey string) string {
 	return fmt.Sprintf("%s://%s:%s/%s", myServerOptions.scheme, myServerOptions.host, myServerOptions.port, shortKey)
 }
 
