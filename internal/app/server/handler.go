@@ -12,17 +12,26 @@ import (
 	"github.com/mikesvis/short/internal/domain"
 )
 
-// Обработка GET
-func ServeGet(w http.ResponseWriter, r *http.Request, s storage.StorageURL) {
-	shortURL := fmt.Sprintf("%s://%s%s", getScheme(r), r.Host, r.URL.Path)
-	item := s.GetByShort(shortURL)
-	if item == (domain.URL{}) {
-		errorResponse(w, fmt.Errorf("full url is not found for %s", shortURL))
-		return
-	}
+// Обработка Get
+// Получение короткого URL из запроса
+// Поиск в условной "базе" полного URL по сокращенному
+func ServeGet(s storage.StorageURL) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		shortURL := fmt.Sprintf("%s://%s%s", getScheme(r), r.Host, r.URL.Path)
+		item := s.GetByShort(shortURL)
+		if item == (domain.URL{}) {
+			err := fmt.Errorf("full url is not found for %s", shortURL)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 
-	w.Header().Set("Location", item.Full)
-	w.WriteHeader(http.StatusTemporaryRedirect)
+			log.Printf("%s", err)
+			return
+		}
+
+		w.Header().Set("Location", item.Full)
+		w.WriteHeader(http.StatusTemporaryRedirect)
+
+		log.Printf("found item for full url %+v", item)
+	}
 }
 
 func getScheme(r *http.Request) string {
@@ -34,56 +43,49 @@ func getScheme(r *http.Request) string {
 }
 
 // Обработка POST
-func ServePost(w http.ResponseWriter, r *http.Request, s storage.StorageURL) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		errorResponse(w, err)
-		return
-	}
-
-	err = helpers.ValidateURL(string(body))
-	if err != nil {
-		errorResponse(w, err)
-		return
-	}
-
-	URL := helpers.SanitizeURL(string(body))
-	item := s.GetByFull(URL)
-	if s.GetByFull(URL) == (domain.URL{}) {
-		item = domain.URL{
-			Full:  URL,
-			Short: helpers.GetFormattedURL(helpers.GetRandkey(helpers.KeyLength)),
+// Проверка на пустое тело запроса
+// Проверка на валидность URL
+// Запись сокращенного Url в условную "базу" если нет такого ключа
+func ServePost(s storage.StorageURL) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("%s", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
-		s.Store(item)
-		log.Printf("add new item to urls %+v", item)
+
+		err = helpers.ValidateURL(string(body))
+		if err != nil {
+			log.Printf("%s", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		URL := helpers.SanitizeURL(string(body))
+		status := http.StatusOK
+
+		item := s.GetByFull(URL)
+		if s.GetByFull(URL) == (domain.URL{}) {
+			item = domain.URL{
+				Full:  URL,
+				Short: helpers.GetFormattedURL(helpers.GetRandkey(helpers.KeyLength)),
+			}
+			s.Store(item)
+			status = http.StatusCreated
+
+			log.Printf("add new item to urls %+v", item)
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(status)
+		w.Write([]byte(item.Short))
 	}
-
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(item.Short))
 }
-
-// Получение Url с сокращением если есть в условной "базе", генерация нового если в "базе" нет
-// func getShortURL(urlToShort string) string {
-// 	if shortKey := findKeyByValueInMap(urlToShort, storage); shortKey != "" {
-// 		return getFormattedURL(shortKey)
-// 	}
-
-// 	shortKey := getRandkey(keyLength)
-// 	storage[shortKey] = urlToShort
-// 	shortURL := helpers.GetFormattedURL(shortKey)
-
-// 	log.Printf("generated and saved new shorten key for %s: %s", urlToShort, shortKey)
-
-// 	return shortURL
-// }
 
 // Обработка всего остального
 func ServeOther(w http.ResponseWriter, r *http.Request) {
-	errorResponse(w, errors.New("bad protocol"))
-}
-
-func errorResponse(w http.ResponseWriter, err error) {
+	err := errors.New("bad protocol")
 	log.Printf("%s", err)
-	w.WriteHeader(http.StatusBadRequest)
+	http.Error(w, err.Error(), http.StatusBadRequest)
 }

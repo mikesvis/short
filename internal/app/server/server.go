@@ -28,18 +28,14 @@ func init() {
 
 	helpers.SetURLOptions(myServerOptions.scheme, myServerOptions.host, myServerOptions.port)
 
-	s = storage.NewStorageURL(make(map[string]domain.URL))
+	s = storage.NewStorageURL(make(map[domain.ID]domain.URL))
 }
 
 // Запуск сервера
 func Run() error {
 	mux := http.NewServeMux()
-	mux.HandleFunc(`GET /`, func(w http.ResponseWriter, r *http.Request) {
-		ServeGet(w, r, s)
-	})
-	mux.HandleFunc(`POST /`, func(w http.ResponseWriter, r *http.Request) {
-		ServePost(w, r, s)
-	})
+	mux.HandleFunc(`GET /`, ServeGet(s))
+	mux.HandleFunc(`POST /`, ServePost(s))
 	mux.HandleFunc(`/`, ServeOther)
 
 	return http.ListenAndServe(fmt.Sprintf("%s:%s", myServerOptions.host, myServerOptions.port), mux)

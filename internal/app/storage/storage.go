@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/google/uuid"
 	"github.com/mikesvis/short/internal/domain"
 )
 
@@ -11,15 +12,15 @@ type StorageURL interface {
 }
 
 type storageURL struct {
-	items map[string]domain.URL
+	items map[domain.ID]domain.URL
 }
 
-func NewStorageURL(items map[string]domain.URL) StorageURL {
+func NewStorageURL(items map[domain.ID]domain.URL) StorageURL {
 	return &storageURL{items: items}
 }
 
 func (s *storageURL) Store(u domain.URL) {
-	s.items[string(u.Short)] = u
+	s.items[domain.ID(uuid.NewString())] = u
 }
 
 func (s *storageURL) GetByFull(fullURL string) domain.URL {

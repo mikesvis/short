@@ -14,12 +14,14 @@ type URLOptions struct {
 
 var myURLOptions URLOptions
 
-func SetURLOptions(sheme, host, port string) {
+func SetURLOptions(sheme, host, port string) URLOptions {
 	myURLOptions = URLOptions{
 		scheme: sheme,
 		host:   host,
 		port:   port,
 	}
+
+	return myURLOptions
 }
 
 // Шаблон сокращенного Url
@@ -42,5 +44,5 @@ func ValidateURL(URL string) error {
 }
 
 func SanitizeURL(URL string) string {
-	return strings.Trim(URL, "")
+	return strings.Trim(URL, " ")
 }

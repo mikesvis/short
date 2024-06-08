@@ -8,7 +8,7 @@ const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const KeyLength = 5
 
 // Получение рандомного ключа/строки
-func GetRandkey(n int) string {
+func GetRandkey(n uint) string {
 	b := make([]byte, n)
 
 	for i := range b {
