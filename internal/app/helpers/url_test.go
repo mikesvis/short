@@ -8,9 +8,8 @@ import (
 
 func TestGetFormattedURL(t *testing.T) {
 	type args struct {
-		scheme   string
-		host     string
-		shortKey string
+		linkServerAddress string
+		shortKey          string
 	}
 	tests := []struct {
 		name string
@@ -20,16 +19,15 @@ func TestGetFormattedURL(t *testing.T) {
 		{
 			name: "Formatted Url",
 			args: args{
-				scheme:   "http",
-				host:     "example.com",
-				shortKey: "IddQd",
+				linkServerAddress: "http://example.com",
+				shortKey:          "IddQd",
 			},
 			want: "http://example.com/IddQd",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, FormatURL(tt.args.shortKey, tt.args.scheme, tt.args.host))
+			assert.Equal(t, tt.want, FormatURL(tt.args.linkServerAddress, tt.args.shortKey))
 		})
 	}
 }

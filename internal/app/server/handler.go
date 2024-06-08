@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/mikesvis/short/internal/app/config"
 	"github.com/mikesvis/short/internal/app/helpers"
 	"github.com/mikesvis/short/internal/app/storage"
 	"github.com/mikesvis/short/internal/domain"
@@ -80,7 +81,7 @@ func ServePost(s storage.StorageURL) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(status)
-		w.Write([]byte(helpers.FormatURL(item.Short, getScheme(r), r.Host)))
+		w.Write([]byte(helpers.FormatURL(config.GetShortLinkAddr(), item.Short)))
 	}
 }
 

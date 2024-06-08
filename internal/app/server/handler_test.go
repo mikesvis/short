@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mikesvis/short/internal/app/config"
 	"github.com/mikesvis/short/internal/app/storage"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/stretchr/testify/assert"
@@ -128,6 +129,7 @@ func Test_getScheme(t *testing.T) {
 }
 
 func TestServePost(t *testing.T) {
+	config.InitConfig()
 	type args struct {
 		s storage.StorageURL
 	}
@@ -150,12 +152,12 @@ func TestServePost(t *testing.T) {
 		request request
 	}{
 		{
-			name: "Create short url from full (201)",
+			name: "Get short url from full (201)",
 			args: args{
 				s: storage.NewStorageURL(map[domain.ID]domain.URL{
 					"dummyId1": {
 						Full:  "http://www.yandex.ru/verylongpath",
-						Short: "http://example.com/short",
+						Short: "short",
 					},
 				}),
 			},
@@ -164,7 +166,7 @@ func TestServePost(t *testing.T) {
 				statusCode:  http.StatusOK,
 				isNew:       false,
 				wantError:   false,
-				body:        "http://example.com/",
+				body:        config.GetShortLinkAddr() + "/short",
 			},
 			request: request{
 				method: "POST",
@@ -172,7 +174,7 @@ func TestServePost(t *testing.T) {
 				body:   "http://www.yandex.ru/verylongpath",
 			},
 		}, {
-			name: "Get short url from full (200)",
+			name: "Create short url from full (200)",
 			args: args{
 				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
 			},
@@ -181,7 +183,7 @@ func TestServePost(t *testing.T) {
 				statusCode:  http.StatusCreated,
 				isNew:       true,
 				wantError:   false,
-				body:        "http://example.com/",
+				body:        config.GetShortLinkAddr(),
 			},
 			request: request{
 				method: "POST",

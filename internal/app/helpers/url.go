@@ -7,8 +7,8 @@ import (
 )
 
 // Шаблон сокращенного Url
-func FormatURL(shortKey, scheme, host string) string {
-	return fmt.Sprintf("%s://%s/%s", scheme, host, shortKey)
+func FormatURL(linkServerAddress, shortKey string) string {
+	return fmt.Sprintf("%s/%s", linkServerAddress, shortKey)
 }
 
 // Получение и проверка валидности Url

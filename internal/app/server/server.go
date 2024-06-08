@@ -1,31 +1,17 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/mikesvis/short/internal/app/config"
 	"github.com/mikesvis/short/internal/app/storage"
 	"github.com/mikesvis/short/internal/domain"
 )
 
-type serverOptions struct {
-	scheme,
-	host,
-	port string
-}
-
-var myServerOptions serverOptions
-
 var s storage.StorageURL
 
 func init() {
-	myServerOptions = serverOptions{
-		"http",
-		"localhost",
-		"8080",
-	}
-
 	s = storage.NewStorageURL(make(map[domain.ID]domain.URL))
 }
 
@@ -45,5 +31,5 @@ func ShortRouter() chi.Router {
 
 // Запуск сервера
 func Run() error {
-	return http.ListenAndServe(fmt.Sprintf("%s:%s", myServerOptions.host, myServerOptions.port), ShortRouter())
+	return http.ListenAndServe(config.GetServerHostAddr(), ShortRouter())
 }
