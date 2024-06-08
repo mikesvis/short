@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/mikesvis/short/internal/app/helpers"
+	"github.com/go-chi/chi/v5"
 	"github.com/mikesvis/short/internal/app/storage"
 	"github.com/mikesvis/short/internal/domain"
 )
@@ -26,17 +26,24 @@ func init() {
 		"8080",
 	}
 
-	helpers.SetURLOptions(myServerOptions.scheme, myServerOptions.host, myServerOptions.port)
-
 	s = storage.NewStorageURL(make(map[domain.ID]domain.URL))
+}
+
+func ShortRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Route("/", func(r chi.Router) {
+		r.Get("/{shortKey}", ServeGet(s))
+		r.Post("/", ServePost(s))
+		r.Get("/", ServeOther)
+		r.Patch("/", ServeOther)
+		r.Put("/", ServeOther)
+		r.Delete("/", ServeOther)
+	})
+
+	return r
 }
 
 // Запуск сервера
 func Run() error {
-	mux := http.NewServeMux()
-	mux.HandleFunc(`GET /`, ServeGet(s))
-	mux.HandleFunc(`POST /`, ServePost(s))
-	mux.HandleFunc(`/`, ServeOther)
-
-	return http.ListenAndServe(fmt.Sprintf("%s:%s", myServerOptions.host, myServerOptions.port), mux)
+	return http.ListenAndServe(fmt.Sprintf("%s:%s", myServerOptions.host, myServerOptions.port), ShortRouter())
 }

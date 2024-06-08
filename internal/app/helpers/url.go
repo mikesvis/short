@@ -6,27 +6,9 @@ import (
 	"strings"
 )
 
-type URLOptions struct {
-	scheme,
-	host,
-	port string
-}
-
-var myURLOptions URLOptions
-
-func SetURLOptions(sheme, host, port string) URLOptions {
-	myURLOptions = URLOptions{
-		scheme: sheme,
-		host:   host,
-		port:   port,
-	}
-
-	return myURLOptions
-}
-
 // Шаблон сокращенного Url
-func GetFormattedURL(shortKey string) string {
-	return fmt.Sprintf("%s://%s:%s/%s", myURLOptions.scheme, myURLOptions.host, myURLOptions.port, shortKey)
+func FormatURL(shortKey, scheme, host string) string {
+	return fmt.Sprintf("%s://%s/%s", scheme, host, shortKey)
 }
 
 // Получение и проверка валидности Url

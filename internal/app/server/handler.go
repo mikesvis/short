@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/mikesvis/short/internal/app/helpers"
 	"github.com/mikesvis/short/internal/app/storage"
@@ -17,10 +18,10 @@ import (
 // Поиск в условной "базе" полного URL по сокращенному
 func ServeGet(s storage.StorageURL) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		shortURL := fmt.Sprintf("%s://%s%s", getScheme(r), r.Host, r.URL.Path)
-		item := s.GetByShort(shortURL)
+		shortKey := strings.TrimLeft(r.RequestURI, "/")
+		item := s.GetByShort(shortKey)
 		if item == (domain.URL{}) {
-			err := fmt.Errorf("full url is not found for %s", shortURL)
+			err := fmt.Errorf("full url is not found for %s", shortKey)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 
 			log.Printf("%s", err)
@@ -69,7 +70,7 @@ func ServePost(s storage.StorageURL) http.HandlerFunc {
 		if s.GetByFull(URL) == (domain.URL{}) {
 			item = domain.URL{
 				Full:  URL,
-				Short: helpers.GetFormattedURL(helpers.GetRandkey(helpers.KeyLength)),
+				Short: helpers.GetRandkey(helpers.KeyLength),
 			}
 			s.Store(item)
 			status = http.StatusCreated
@@ -79,7 +80,7 @@ func ServePost(s storage.StorageURL) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(status)
-		w.Write([]byte(item.Short))
+		w.Write([]byte(helpers.FormatURL(item.Short, getScheme(r), r.Host)))
 	}
 }
 

@@ -7,14 +7,9 @@ import (
 )
 
 func TestGetFormattedURL(t *testing.T) {
-	myURLOptions = URLOptions{
-		scheme: "http",
-		host:   "localhost",
-		port:   "8080",
-	}
-
-	SetURLOptions(myURLOptions.scheme, myURLOptions.host, myURLOptions.port)
 	type args struct {
+		scheme   string
+		host     string
 		shortKey string
 	}
 	tests := []struct {
@@ -25,14 +20,16 @@ func TestGetFormattedURL(t *testing.T) {
 		{
 			name: "Formatted Url",
 			args: args{
+				scheme:   "http",
+				host:     "example.com",
 				shortKey: "IddQd",
 			},
-			want: "http://localhost:8080/IddQd",
+			want: "http://example.com/IddQd",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, GetFormattedURL(tt.args.shortKey))
+			assert.Equal(t, tt.want, FormatURL(tt.args.shortKey, tt.args.scheme, tt.args.host))
 		})
 	}
 }
@@ -101,40 +98,6 @@ func TestSanitizeURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, SanitizeURL(tt.value))
-		})
-	}
-}
-
-func TestSetURLOptions(t *testing.T) {
-	type args struct {
-		scheme string
-		host   string
-		port   string
-	}
-	tests := []struct {
-		name string
-		args args
-		want URLOptions
-	}{
-		{
-			name: "Simple set url options",
-			args: args{
-				scheme: "http",
-				host:   "localhost",
-				port:   "8080",
-			},
-			want: URLOptions{
-				scheme: "http",
-				host:   "localhost",
-				port:   "8080",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			settedOptions := SetURLOptions(tt.args.scheme, tt.args.host, tt.want.port)
-			assert.NotEmpty(t, settedOptions)
-			assert.Equal(t, tt.want, settedOptions)
 		})
 	}
 }

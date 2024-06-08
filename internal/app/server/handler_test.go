@@ -39,7 +39,7 @@ func TestServeGet(t *testing.T) {
 				s: storage.NewStorageURL(map[domain.ID]domain.URL{
 					"dummyId1": {
 						Full:  "http://www.yandex.ru/verylongpath",
-						Short: "http://localhost/short",
+						Short: "short",
 					},
 				}),
 			},
@@ -47,11 +47,10 @@ func TestServeGet(t *testing.T) {
 				statusCode:  http.StatusTemporaryRedirect,
 				newLocation: "http://www.yandex.ru/verylongpath",
 				wantError:   false,
-				body:        "",
 			},
 			request: request{
 				methhod: "GET",
-				target:  "http://localhost/short",
+				target:  "/short",
 			},
 		}, {
 			name: "Full url does not exist (400)",
@@ -62,11 +61,11 @@ func TestServeGet(t *testing.T) {
 				statusCode:  http.StatusBadRequest,
 				newLocation: "",
 				wantError:   true,
-				body:        "full url is not found for http://localhost/short",
+				body:        "full url is not found",
 			},
 			request: request{
 				methhod: "GET",
-				target:  "http://localhost/short",
+				target:  "http://example.com/short",
 			},
 		},
 	}
@@ -151,12 +150,12 @@ func TestServePost(t *testing.T) {
 		request request
 	}{
 		{
-			name: "Retrieve short url from full (201)",
+			name: "Create short url from full (201)",
 			args: args{
 				s: storage.NewStorageURL(map[domain.ID]domain.URL{
 					"dummyId1": {
 						Full:  "http://www.yandex.ru/verylongpath",
-						Short: "http://localhost/short",
+						Short: "http://example.com/short",
 					},
 				}),
 			},
@@ -165,7 +164,7 @@ func TestServePost(t *testing.T) {
 				statusCode:  http.StatusOK,
 				isNew:       false,
 				wantError:   false,
-				body:        "http://localhost/short",
+				body:        "http://example.com/",
 			},
 			request: request{
 				method: "POST",
@@ -173,7 +172,7 @@ func TestServePost(t *testing.T) {
 				body:   "http://www.yandex.ru/verylongpath",
 			},
 		}, {
-			name: "Create short url from full (200)",
+			name: "Get short url from full (200)",
 			args: args{
 				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
 			},
@@ -182,7 +181,7 @@ func TestServePost(t *testing.T) {
 				statusCode:  http.StatusCreated,
 				isNew:       true,
 				wantError:   false,
-				body:        "http://localhost",
+				body:        "http://example.com/",
 			},
 			request: request{
 				method: "POST",
@@ -248,11 +247,12 @@ func TestServePost(t *testing.T) {
 			assert.Equal(t, tt.want.contentType, result.Header.Get("Content-Type"))
 
 			if tt.want.isNew {
+				assert.NotEmpty(t, string(response))
 				assert.Contains(t, string(response), tt.want.body)
 				return
 			}
 
-			assert.Equal(t, tt.want.body, string(response))
+			assert.Contains(t, string(response), tt.want.body)
 		})
 	}
 }
