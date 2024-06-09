@@ -1,103 +1,71 @@
 package config
 
 import (
-	"errors"
 	"fmt"
-	"strconv"
-	"strings"
+	"log"
 
-	"github.com/spf13/pflag"
+	"github.com/caarlos0/env"
+	flag "github.com/spf13/pflag"
 )
 
-type ServerConfig struct {
-	host string
-	port int
-}
-
-type LinkConfig struct {
-	scheme,
-	host string
-	port int
-}
+type Address string
 
 type Config struct {
-	ServerConfig ServerConfig
-	LinkConfig   LinkConfig
+	ServerAddress Address `env:"SERVER_ADDRESS"`
+	BaseURL       Address `env:"BASE_URL"`
 }
 
-func (conf *ServerConfig) String() string {
-	return fmt.Sprintf("%s:%d", conf.host, conf.port)
-}
-
-func (conf *ServerConfig) Type() string {
-	return "string"
-}
-
-func (conf *ServerConfig) Set(flagValue string) error {
-	s := strings.Split(flagValue, ":")
-	if len(s) != 2 {
-		return errors.New("server address shoud be <host:port>")
-	}
-	port, err := strconv.Atoi(s[1])
-	if err != nil {
-		return err
-	}
-	conf.host = s[0]
-	conf.port = port
+func (a *Address) Set(flagValue string) error {
+	*a = Address(flagValue)
 	return nil
 }
 
-func (conf *LinkConfig) String() string {
-	return fmt.Sprintf("%s://%s:%d", conf.scheme, conf.host, conf.port)
+func (a Address) String() string {
+	return string(a)
 }
 
-func (conf *LinkConfig) Type() string {
+func (a *Address) Type() string {
 	return "string"
 }
 
-func (conf *LinkConfig) Set(flagValue string) error {
-	s := strings.Split(flagValue, ":")
-	if len(s) != 3 {
-		return errors.New("link address shoud be <scheme://host:port>")
+func (a *Address) UnmarshalText(envValue []byte) error {
+	if len(envValue) == 0 {
+		return fmt.Errorf("cannot be empty")
 	}
-	if s[0] != "http" && s[0] != "https" {
-		return fmt.Errorf("unknown scheme in link config %s", s[1])
-	}
-	port, err := strconv.Atoi(s[2])
-	if err != nil {
-		return err
-	}
-	conf.scheme = s[0]
-	conf.host = strings.TrimLeft(s[1], "/")
-	conf.port = port
+	*a = Address(string(envValue))
 	return nil
 }
 
 var config Config = Config{
-	ServerConfig: ServerConfig{
-		host: "localhost",
-		port: 8080,
-	},
-	LinkConfig: LinkConfig{
-		scheme: "http",
-		host:   "localhost",
-		port:   8080,
-	},
-}
-
-func init() {
-	pflag.VarP(&config.ServerConfig, "address", "a", "address of shortener service server")
-	pflag.VarP(&config.LinkConfig, "basepath", "b", "address of short link basepath")
+	ServerAddress: "localhost:8080",
+	BaseURL:       "http://localhost:8080",
 }
 
 func InitConfig() {
-	pflag.Parse()
+	parseFlags(&config)
+	env.Parse(&config)
+	log.Printf("initialized config %+v", config)
 }
 
-func GetServerHostAddr() string {
-	return config.ServerConfig.String()
+func parseFlags(config *Config) {
+	flag.VarP(&config.ServerAddress, "address", "a", "address of shortener service server")
+	flag.VarP(&config.BaseURL, "basepath", "b", "address of short link basepath")
+	flag.Parse()
 }
 
-func GetShortLinkAddr() string {
-	return config.LinkConfig.String()
+// func parseEnvs(c Config) {
+// 	// if _, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
+// 	// 	env.Parse(&c.ServerAddress)
+// 	// }
+// 	// if _, ok := os.LookupEnv("BASE_URL"); ok {
+// 	env.Parse(c)(c)
+// 	// }
+// }
+
+func GetServerAddress() string {
+	return string(config.ServerAddress)
+}
+
+func GetBaseURL() string {
+	return string(config.BaseURL)
 }

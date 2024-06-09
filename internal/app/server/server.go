@@ -31,5 +31,5 @@ func ShortRouter() chi.Router {
 
 // Запуск сервера
 func Run() error {
-	return http.ListenAndServe(config.GetServerHostAddr(), ShortRouter())
+	return http.ListenAndServe(config.GetServerAddress(), ShortRouter())
 }

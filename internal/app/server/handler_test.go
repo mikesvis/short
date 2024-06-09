@@ -166,7 +166,7 @@ func TestServePost(t *testing.T) {
 				statusCode:  http.StatusOK,
 				isNew:       false,
 				wantError:   false,
-				body:        config.GetShortLinkAddr() + "/short",
+				body:        config.GetBaseURL() + "/short",
 			},
 			request: request{
 				method: "POST",
@@ -183,7 +183,7 @@ func TestServePost(t *testing.T) {
 				statusCode:  http.StatusCreated,
 				isNew:       true,
 				wantError:   false,
-				body:        config.GetShortLinkAddr(),
+				body:        config.GetBaseURL(),
 			},
 			request: request{
 				method: "POST",

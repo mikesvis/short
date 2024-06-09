@@ -81,7 +81,7 @@ func ServePost(s storage.StorageURL) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(status)
-		w.Write([]byte(helpers.FormatURL(config.GetShortLinkAddr(), item.Short)))
+		w.Write([]byte(helpers.FormatURL(config.GetBaseURL(), item.Short)))
 	}
 }
 
