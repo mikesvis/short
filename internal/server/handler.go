@@ -8,10 +8,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/mikesvis/short/internal/app/config"
-	"github.com/mikesvis/short/internal/app/helpers"
-	"github.com/mikesvis/short/internal/app/storage"
+	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/keygen"
+	"github.com/mikesvis/short/internal/storage"
+	"github.com/mikesvis/short/internal/urlformat"
 )
 
 // Обработка Get
@@ -57,21 +58,21 @@ func ServePost(s storage.StorageURL) http.HandlerFunc {
 			return
 		}
 
-		err = helpers.ValidateURL(string(body))
+		err = urlformat.ValidateURL(string(body))
 		if err != nil {
 			log.Printf("%s", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		URL := helpers.SanitizeURL(string(body))
+		URL := urlformat.SanitizeURL(string(body))
 		status := http.StatusOK
 
 		item := s.GetByFull(URL)
 		if s.GetByFull(URL) == (domain.URL{}) {
 			item = domain.URL{
 				Full:  URL,
-				Short: helpers.GetRandkey(helpers.KeyLength),
+				Short: keygen.GetRandkey(keygen.KeyLength),
 			}
 			s.Store(item)
 			status = http.StatusCreated
@@ -81,7 +82,7 @@ func ServePost(s storage.StorageURL) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(status)
-		w.Write([]byte(helpers.FormatURL(config.GetBaseURL(), item.Short)))
+		w.Write([]byte(urlformat.FormatURL(config.GetBaseURL(), item.Short)))
 	}
 }
 

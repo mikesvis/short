@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/mikesvis/short/internal/app/config"
-	"github.com/mikesvis/short/internal/app/server"
+	"github.com/mikesvis/short/internal/config"
+	"github.com/mikesvis/short/internal/server"
 )
 
 func main() {

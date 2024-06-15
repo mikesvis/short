@@ -20,8 +20,8 @@ func (a *Address) Set(flagValue string) error {
 	return nil
 }
 
-func (a Address) String() string {
-	return string(a)
+func (a *Address) String() string {
+	return string(*a)
 }
 
 func (a *Address) Type() string {
@@ -52,15 +52,6 @@ func parseFlags(config *Config) {
 	flag.VarP(&config.BaseURL, "basepath", "b", "address of short link basepath")
 	flag.Parse()
 }
-
-// func parseEnvs(c Config) {
-// 	// if _, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
-// 	// 	env.Parse(&c.ServerAddress)
-// 	// }
-// 	// if _, ok := os.LookupEnv("BASE_URL"); ok {
-// 	env.Parse(c)(c)
-// 	// }
-// }
 
 func GetServerAddress() string {
 	return string(config.ServerAddress)

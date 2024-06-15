@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mikesvis/short/internal/app/config"
-	"github.com/mikesvis/short/internal/app/storage"
+	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

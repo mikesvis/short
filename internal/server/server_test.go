@@ -27,7 +27,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, request
 }
 
 func TestShortRouter(t *testing.T) {
-	ts := httptest.NewServer(ShortRouter())
+	ts := httptest.NewServer(NewRouter())
 	defer ts.Close()
 
 	startFull := "https://practicum.yandex.ru/"
