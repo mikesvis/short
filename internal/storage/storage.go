@@ -5,17 +5,11 @@ import (
 	"github.com/mikesvis/short/internal/domain"
 )
 
-type StorageURL interface {
-	Store(domain.URL)
-	GetByFull(fullURL string) domain.URL
-	GetByShort(shortURL string) domain.URL
-}
-
 type storageURL struct {
 	items map[domain.ID]domain.URL
 }
 
-func NewStorageURL(items map[domain.ID]domain.URL) StorageURL {
+func NewStorageURL(items map[domain.ID]domain.URL) *storageURL {
 	return &storageURL{items: items}
 }
 

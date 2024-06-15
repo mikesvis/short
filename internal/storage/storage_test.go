@@ -16,7 +16,7 @@ func TestNewStorageURL(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want StorageURL
+		want *storageURL
 	}{
 		{
 			name: "New storage is of type",

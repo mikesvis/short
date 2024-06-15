@@ -11,15 +11,14 @@ import (
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/keygen"
-	"github.com/mikesvis/short/internal/storage"
 	"github.com/mikesvis/short/internal/urlformat"
 )
 
 type handler struct {
-	storage storage.StorageURL
+	storage StorageURL
 }
 
-func NewHandler(s storage.StorageURL) *handler {
+func NewHandler(s StorageURL) *handler {
 	return &handler{storage: s}
 }
 

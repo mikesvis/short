@@ -9,7 +9,7 @@ import (
 	"github.com/mikesvis/short/internal/storage"
 )
 
-var s storage.StorageURL
+var s StorageURL
 
 func init() {
 	s = storage.NewStorageURL(make(map[domain.ID]domain.URL))

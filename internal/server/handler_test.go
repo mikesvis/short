@@ -16,7 +16,7 @@ import (
 
 func TestServeGet(t *testing.T) {
 	type args struct {
-		s storage.StorageURL
+		s StorageURL
 	}
 	type want struct {
 		statusCode  int
@@ -98,7 +98,7 @@ func TestServeGet(t *testing.T) {
 func TestServePost(t *testing.T) {
 	config.InitConfig()
 	type args struct {
-		s storage.StorageURL
+		s StorageURL
 	}
 	type want struct {
 		contentType string
