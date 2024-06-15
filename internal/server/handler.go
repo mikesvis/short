@@ -15,13 +15,21 @@ import (
 	"github.com/mikesvis/short/internal/urlformat"
 )
 
+type handler struct {
+	storage storage.StorageURL
+}
+
+func NewHandler(s storage.StorageURL) *handler {
+	return &handler{storage: s}
+}
+
 // Обработка Get
 // Получение короткого URL из запроса
 // Поиск в условной "базе" полного URL по сокращенному
-func ServeGet(s storage.StorageURL) http.HandlerFunc {
+func (h *handler) ServeGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortKey := strings.TrimLeft(r.RequestURI, "/")
-		item := s.GetByShort(shortKey)
+		item := h.storage.GetByShort(shortKey)
 		if item == (domain.URL{}) {
 			err := fmt.Errorf("full url is not found for %s", shortKey)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -37,19 +45,11 @@ func ServeGet(s storage.StorageURL) http.HandlerFunc {
 	}
 }
 
-func getScheme(r *http.Request) string {
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	return scheme
-}
-
 // Обработка POST
 // Проверка на пустое тело запроса
 // Проверка на валидность URL
 // Запись сокращенного Url в условную "базу" если нет такого ключа
-func ServePost(s storage.StorageURL) http.HandlerFunc {
+func (h *handler) ServePost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -68,13 +68,13 @@ func ServePost(s storage.StorageURL) http.HandlerFunc {
 		URL := urlformat.SanitizeURL(string(body))
 		status := http.StatusOK
 
-		item := s.GetByFull(URL)
-		if s.GetByFull(URL) == (domain.URL{}) {
+		item := h.storage.GetByFull(URL)
+		if h.storage.GetByFull(URL) == (domain.URL{}) {
 			item = domain.URL{
 				Full:  URL,
 				Short: keygen.GetRandkey(keygen.KeyLength),
 			}
-			s.Store(item)
+			h.storage.Store(item)
 			status = http.StatusCreated
 
 			log.Printf("add new item to urls %+v", item)
@@ -87,7 +87,7 @@ func ServePost(s storage.StorageURL) http.HandlerFunc {
 }
 
 // Обработка всего остального
-func ServeOther(w http.ResponseWriter, r *http.Request) {
+func (h *handler) ServeOther(w http.ResponseWriter, r *http.Request) {
 	err := errors.New("bad protocol")
 	log.Printf("%s", err)
 	http.Error(w, err.Error(), http.StatusBadRequest)

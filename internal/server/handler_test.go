@@ -74,8 +74,9 @@ func TestServeGet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.request.methhod, tt.request.target, nil)
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(ServeGet(tt.args.s))
-			h(w, request)
+			handler := NewHandler(tt.args.s)
+			handle := http.HandlerFunc(handler.ServeGet())
+			handle(w, request)
 			result := w.Result()
 
 			assert.Equal(t, tt.want.statusCode, result.StatusCode)
@@ -90,40 +91,6 @@ func TestServeGet(t *testing.T) {
 			err = result.Body.Close()
 			require.NoError(t, err)
 			require.Contains(t, string(response), tt.want.body)
-		})
-	}
-}
-
-func Test_getScheme(t *testing.T) {
-	type args struct {
-		method string
-		target string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "Test for local http",
-			args: args{
-				method: http.MethodGet,
-				target: "/test",
-			},
-			want: "http",
-		}, {
-			name: "Test for remore https",
-			args: args{
-				method: http.MethodGet,
-				target: "https://ya.ru",
-			},
-			want: "https",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := httptest.NewRequest(tt.args.method, tt.args.target, nil)
-			assert.Equal(t, tt.want, getScheme(r))
 		})
 	}
 }
@@ -152,7 +119,7 @@ func TestServePost(t *testing.T) {
 		request request
 	}{
 		{
-			name: "Get short url from full (201)",
+			name: "Get short url from full (200)",
 			args: args{
 				s: storage.NewStorageURL(map[domain.ID]domain.URL{
 					"dummyId1": {
@@ -174,7 +141,7 @@ func TestServePost(t *testing.T) {
 				body:   "http://www.yandex.ru/verylongpath",
 			},
 		}, {
-			name: "Create short url from full (200)",
+			name: "Create short url from full (201)",
 			args: args{
 				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
 			},
@@ -230,8 +197,9 @@ func TestServePost(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body))
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(ServePost(tt.args.s))
-			h(w, request)
+			handler := NewHandler(tt.args.s)
+			handle := http.HandlerFunc(handler.ServePost())
+			handle(w, request)
 			result := w.Result()
 
 			assert.Equal(t, tt.want.statusCode, result.StatusCode)
@@ -260,6 +228,9 @@ func TestServePost(t *testing.T) {
 }
 
 func TestServeOther(t *testing.T) {
+	s := storage.NewStorageURL(map[domain.ID]domain.URL{})
+	handler := NewHandler(s)
+
 	type request struct {
 		method string
 		target string
@@ -289,7 +260,7 @@ func TestServeOther(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.request.method, tt.request.target, nil)
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(ServeOther)
+			h := http.HandlerFunc(handler.ServeOther)
 			h(w, request)
 			result := w.Result()
 

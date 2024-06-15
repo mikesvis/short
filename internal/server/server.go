@@ -17,13 +17,14 @@ func init() {
 
 func NewRouter() *chi.Mux {
 	r := chi.NewMux()
+	h := NewHandler(s)
 	r.Route("/", func(r chi.Router) {
-		r.Get("/{shortKey}", ServeGet(s))
-		r.Post("/", ServePost(s))
-		r.Get("/", ServeOther)
-		r.Patch("/", ServeOther)
-		r.Put("/", ServeOther)
-		r.Delete("/", ServeOther)
+		r.Get("/{shortKey}", h.ServeGet())
+		r.Post("/", h.ServePost())
+		r.Get("/", h.ServeOther)
+		r.Patch("/", h.ServeOther)
+		r.Put("/", h.ServeOther)
+		r.Delete("/", h.ServeOther)
 	})
 
 	return r
