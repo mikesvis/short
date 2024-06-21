@@ -30,3 +30,23 @@ git fetch template && git checkout template/main .github
 При мёрже ветки с инкрементом в основную ветку `main` будут запускаться все автотесты.
 
 Подробнее про локальный и автоматический запуск читайте в [README автотестов](https://github.com/Yandex-Practicum/go-autotests).
+
+## Запуск сервера сервиса
+
+```bash
+./cmd/shortener/shortener
+```
+
+Можно указывать конфиг для сервера и адрес короткой ссылки
+
+
+```
+// через ENV
+SERVER_ADDRESS=localhost:8080
+BASE_URL=http://localhost:8080
+
+// через флаги
+Usage of ./cmd/shortener/shortener:
+  -a, --address string    address of shortener service server (default "localhost:8080")
+  -b, --basepath string   address of short link basepath (default "http://localhost:8080")
+```
