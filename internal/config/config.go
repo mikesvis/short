@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/caarlos0/env"
+	"github.com/mikesvis/short/internal/logger"
 	flag "github.com/spf13/pflag"
 )
 
@@ -44,7 +44,7 @@ var config Config = Config{
 func InitConfig() {
 	parseFlags(&config)
 	env.Parse(&config)
-	log.Printf("initialized config %+v", config)
+	logger.Log.Infow("Config initialized", "config", config)
 }
 
 func parseFlags(config *Config) {

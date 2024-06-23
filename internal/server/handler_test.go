@@ -9,6 +9,7 @@ import (
 
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/logger"
 	"github.com/mikesvis/short/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -96,6 +97,7 @@ func TestServeGet(t *testing.T) {
 }
 
 func TestServePost(t *testing.T) {
+	logger.Initialize()
 	config.InitConfig()
 	type args struct {
 		s StorageURL

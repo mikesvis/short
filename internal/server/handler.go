@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
@@ -33,14 +32,11 @@ func (h *handler) ServeGet() http.HandlerFunc {
 			err := fmt.Errorf("full url is not found for %s", shortKey)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 
-			log.Printf("%s", err)
 			return
 		}
 
 		w.Header().Set("Location", item.Full)
 		w.WriteHeader(http.StatusTemporaryRedirect)
-
-		log.Printf("found item for full url %+v", item)
 	}
 }
 
@@ -52,15 +48,15 @@ func (h *handler) ServePost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			log.Printf("%s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+
 			return
 		}
 
 		err = urlformat.ValidateURL(string(body))
 		if err != nil {
-			log.Printf("%s", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
+
 			return
 		}
 
@@ -75,8 +71,6 @@ func (h *handler) ServePost() http.HandlerFunc {
 			}
 			h.storage.Store(item)
 			status = http.StatusCreated
-
-			log.Printf("add new item to urls %+v", item)
 		}
 
 		w.Header().Set("Content-Type", "text/plain")
@@ -88,6 +82,5 @@ func (h *handler) ServePost() http.HandlerFunc {
 // Обработка всего остального
 func (h *handler) ServeOther(w http.ResponseWriter, r *http.Request) {
 	err := errors.New("bad protocol")
-	log.Printf("%s", err)
 	http.Error(w, err.Error(), http.StatusBadRequest)
 }

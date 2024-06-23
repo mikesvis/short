@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/logger"
 	"github.com/mikesvis/short/internal/storage"
 )
 
@@ -17,6 +18,7 @@ func init() {
 
 func NewRouter() *chi.Mux {
 	r := chi.NewMux()
+	r.Use(logger.RequestResponseLogger)
 	h := NewHandler(s)
 	r.Route("/", func(r chi.Router) {
 		r.Get("/{shortKey}", h.ServeGet())
@@ -32,5 +34,6 @@ func NewRouter() *chi.Mux {
 
 // Запуск сервера
 func Run() error {
+	logger.Log.Infow("Running server", "address", config.GetServerAddress())
 	return http.ListenAndServe(config.GetServerAddress(), NewRouter())
 }
