@@ -14,12 +14,12 @@ func FormatURL(linkServerAddress, shortKey string) string {
 // Получение и проверка валидности Url
 func ValidateURL(URL string) error {
 	if len(URL) == 0 {
-		return fmt.Errorf("POST body can not be empty")
+		return fmt.Errorf("URL can not be empty")
 	}
 
 	_, err := url.ParseRequestURI(URL)
 	if err != nil {
-		return fmt.Errorf("POST body is not an URL format, %s given", err)
+		return fmt.Errorf("URL is not an URL format, %s given", err)
 	}
 
 	return nil
