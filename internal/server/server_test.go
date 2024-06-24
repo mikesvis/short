@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mikesvis/short/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,6 +28,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, request
 }
 
 func TestShortRouter(t *testing.T) {
+	logger.Initialize()
 	ts := httptest.NewServer(NewRouter())
 	defer ts.Close()
 
@@ -54,29 +56,51 @@ func TestShortRouter(t *testing.T) {
 		want
 	}{
 		{
-			name: "Test valid full url and store new short (201)",
+			name: "Test POST / valid full url and store new short (201)",
 			args: args{method: http.MethodPost, url: "/", body: strings.NewReader("http://yandex.ru")},
 			want: want{statusCode: http.StatusCreated, contentType: "text/plain"},
 		}, {
-			name: "Test valid full url and get old short (200)",
+			name: "Test POST / valid full url and get old short (200)",
 			args: args{method: http.MethodPost, url: "/", body: strings.NewReader(startFull)},
 			want: want{statusCode: http.StatusOK, body: startShort, contentType: "text/plain"},
 		}, {
-			name: "Test invalid url on post (400)",
+			name: "Test POST / invalid url on post (400)",
 			args: args{method: http.MethodPost, url: "/", body: strings.NewReader(":/ya")},
-			want: want{statusCode: http.StatusBadRequest, body: "POST body is not an URL format", contentType: "text/plain"},
+			want: want{statusCode: http.StatusBadRequest, body: "URL is not an URL format", contentType: "text/plain"},
 		}, {
-			name: "Test invalid empty url on post (400)",
+			name: "Test POST / invalid empty url (400)",
 			args: args{method: http.MethodPost, url: "/", body: strings.NewReader("")},
-			want: want{statusCode: http.StatusBadRequest, body: "POST body can not be empty", contentType: "text/plain"},
-		},
-		{
-			name: "Test success get (307 -> redirect -> 200)",
+			want: want{statusCode: http.StatusBadRequest, body: "URL can not be empty", contentType: "text/plain"},
+		}, {
+			name: "Test POST /api/shorten valid full url and store new short (201)",
+			args: args{method: http.MethodPost, url: "/api/shorten", body: strings.NewReader(`{"url":"https://google.com"}`)},
+			want: want{statusCode: http.StatusCreated, contentType: "application/json"},
+		}, {
+			name: "Test POST /api/shorten valid full url and get old short (200)",
+			args: args{
+				method: http.MethodPost,
+				url:    "/api/shorten",
+				body:   strings.NewReader(strings.Join([]string{`{"url":"`, startFull, `"}`}, "")),
+			},
+			want: want{statusCode: http.StatusOK, body: startShort, contentType: "application/json"},
+		}, {
+			name: "Test POST /api/shorten invalid url on post (400)",
+			args: args{method: http.MethodPost, url: "/api/shorten", body: strings.NewReader(`{"url":":/ya"}`)},
+			want: want{statusCode: http.StatusBadRequest, body: "URL is not an URL format", contentType: "text/plain"},
+		}, {
+			name: "Test POST /api/shorten invalid empty url (400)",
+			args: args{method: http.MethodPost, url: "/api/shorten", body: strings.NewReader(`{"url":""}`)},
+			want: want{statusCode: http.StatusBadRequest, body: "URL can not be empty", contentType: "text/plain"},
+		}, {
+			name: "Test POST /api/shorten corrupted JSON(400)",
+			args: args{method: http.MethodPost, url: "/api/shorten", body: strings.NewReader(`{"url":"}`)},
+			want: want{statusCode: http.StatusBadRequest, body: "unexpected EOF", contentType: "text/plain"},
+		}, {
+			name: "Test GET / success get (307 -> redirect -> 200)",
 			args: args{method: http.MethodGet, url: shortKey},
 			want: want{statusCode: http.StatusOK},
-		},
-		{
-			name: "Test fail get (400)",
+		}, {
+			name: "Test GET / fail (400)",
 			args: args{method: http.MethodGet, url: "/iddQd-doom-slayer"},
 			want: want{statusCode: http.StatusBadRequest, body: "full url is not found", contentType: "text/plain"},
 		},

@@ -20,6 +20,9 @@ func NewRouter() *chi.Mux {
 	r := chi.NewMux()
 	r.Use(logger.RequestResponseLogger)
 	h := NewHandler(s)
+	r.Route("/api", func(r chi.Router) {
+		r.Post("/shorten", h.ServeAPIPost())
+	})
 	r.Route("/", func(r chi.Router) {
 		r.Get("/{shortKey}", h.ServeGet())
 		r.Post("/", h.ServePost())
