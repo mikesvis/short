@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/mikesvis/short/internal/compressor"
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/logger"
@@ -19,6 +20,7 @@ func init() {
 func NewRouter() *chi.Mux {
 	r := chi.NewMux()
 	r.Use(logger.RequestResponseLogger)
+	r.Use(compressor.GZip)
 	h := NewHandler(s)
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/shorten", h.ServeAPIPost())
