@@ -1,13 +1,14 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
+	"github.com/mikesvis/short/internal/api"
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/keygen"
@@ -28,19 +29,16 @@ func NewHandler(s StorageURL) *handler {
 func (h *handler) ServeGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shortKey := strings.TrimLeft(r.RequestURI, "/")
-		item := h.storage.GetByShort(shortKey)
-		if item == (domain.URL{}) {
+		item, isExist := h.storage.GetByShort(shortKey)
+		if !isExist {
 			err := fmt.Errorf("full url is not found for %s", shortKey)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 
-			log.Printf("%s", err)
 			return
 		}
 
 		w.Header().Set("Location", item.Full)
 		w.WriteHeader(http.StatusTemporaryRedirect)
-
-		log.Printf("found item for full url %+v", item)
 	}
 }
 
@@ -52,31 +50,29 @@ func (h *handler) ServePost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			log.Printf("%s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+
 			return
 		}
 
 		err = urlformat.ValidateURL(string(body))
 		if err != nil {
-			log.Printf("%s", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
+
 			return
 		}
 
 		URL := urlformat.SanitizeURL(string(body))
 		status := http.StatusOK
 
-		item := h.storage.GetByFull(URL)
-		if h.storage.GetByFull(URL) == (domain.URL{}) {
+		item, isExist := h.storage.GetByFull(URL)
+		if !isExist {
 			item = domain.URL{
 				Full:  URL,
 				Short: keygen.GetRandkey(keygen.KeyLength),
 			}
 			h.storage.Store(item)
 			status = http.StatusCreated
-
-			log.Printf("add new item to urls %+v", item)
 		}
 
 		w.Header().Set("Content-Type", "text/plain")
@@ -88,6 +84,47 @@ func (h *handler) ServePost() http.HandlerFunc {
 // Обработка всего остального
 func (h *handler) ServeOther(w http.ResponseWriter, r *http.Request) {
 	err := errors.New("bad protocol")
-	log.Printf("%s", err)
 	http.Error(w, err.Error(), http.StatusBadRequest)
+}
+
+// Обработка /api/shorten POST
+// Проверка на битый JSON
+// Проверка на пустой URL
+// Проверка на валидность URL
+// Запись сокращенного URL в условную "базу" если нет такого ключа
+func (h *handler) ServeAPIPost() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request api.Request
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		URL := string(request.URL)
+		err := urlformat.ValidateURL(URL)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+
+			return
+		}
+
+		URL = urlformat.SanitizeURL(URL)
+
+		status := http.StatusOK
+		item, isExist := h.storage.GetByFull(URL)
+		if !isExist {
+			item = domain.URL{
+				Full:  URL,
+				Short: keygen.GetRandkey(keygen.KeyLength),
+			}
+			h.storage.Store(item)
+			status = http.StatusCreated
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+
+		response := api.Response{Result: api.URL(urlformat.FormatURL(config.GetBaseURL(), item.Short))}
+		jsonEncoder := json.NewEncoder(w)
+		jsonEncoder.Encode(response)
+	}
 }

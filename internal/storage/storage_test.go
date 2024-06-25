@@ -121,9 +121,9 @@ func Test_storageURL_GetByFull(t *testing.T) {
 			s := &storageURL{
 				items: tt.fields.items,
 			}
-			exists := s.GetByFull(tt.args)
-			assert.IsType(t, tt.want, exists)
-			assert.EqualValues(t, tt.want, exists)
+			item, _ := s.GetByFull(tt.args)
+			assert.IsType(t, tt.want, item)
+			assert.EqualValues(t, tt.want, item)
 		})
 	}
 }
@@ -176,9 +176,9 @@ func Test_storageURL_GetByShort(t *testing.T) {
 			s := &storageURL{
 				items: tt.fields.items,
 			}
-			exists := s.GetByShort(tt.args)
-			assert.IsType(t, tt.want, exists)
-			assert.EqualValues(t, tt.want, exists)
+			item, _ := s.GetByShort(tt.args)
+			assert.IsType(t, tt.want, item)
+			assert.EqualValues(t, tt.want, item)
 		})
 	}
 }
