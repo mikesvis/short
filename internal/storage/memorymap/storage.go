@@ -1,4 +1,4 @@
-package storage
+package memorymap
 
 import (
 	"github.com/google/uuid"

@@ -10,9 +10,12 @@ import (
 
 type Address string
 
+type FilePath string
+
 type Config struct {
-	ServerAddress Address `env:"SERVER_ADDRESS"`
-	BaseURL       Address `env:"BASE_URL"`
+	ServerAddress   Address  `env:"SERVER_ADDRESS"`
+	BaseURL         Address  `env:"BASE_URL"`
+	FileStoragePath FilePath `env:"FILE_STORAGE_PATH"  envDefault:"/tmp/short-url-db.json"`
 }
 
 func (a *Address) Set(flagValue string) error {
@@ -36,9 +39,23 @@ func (a *Address) UnmarshalText(envValue []byte) error {
 	return nil
 }
 
+func (s *FilePath) Set(flagValue string) error {
+	*s = FilePath(string(flagValue))
+	return nil
+}
+
+func (s *FilePath) String() string {
+	return string(*s)
+}
+
+func (s *FilePath) Type() string {
+	return "string"
+}
+
 var config Config = Config{
-	ServerAddress: "localhost:8080",
-	BaseURL:       "http://localhost:8080",
+	ServerAddress:   "localhost:8080",
+	BaseURL:         "http://localhost:8080",
+	FileStoragePath: "",
 }
 
 func InitConfig() {
@@ -47,9 +64,10 @@ func InitConfig() {
 	logger.Log.Infow("Config initialized", "config", config)
 }
 
-func parseFlags(config *Config) {
-	flag.VarP(&config.ServerAddress, "address", "a", "address of shortener service server")
-	flag.VarP(&config.BaseURL, "basepath", "b", "address of short link basepath")
+func parseFlags(c *Config) {
+	flag.VarP(&c.ServerAddress, "address", "a", "address of shortener service server")
+	flag.VarP(&c.BaseURL, "basepath", "b", "address of short link basepath")
+	flag.VarP(&c.FileStoragePath, "file_storage_path", "f", "path to file storage of URLs")
 	flag.Parse()
 }
 
@@ -59,4 +77,8 @@ func GetServerAddress() string {
 
 func GetBaseURL() string {
 	return string(config.BaseURL)
+}
+
+func GetFileStoragePath() string {
+	return string(config.FileStoragePath)
 }

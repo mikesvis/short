@@ -39,3 +39,20 @@ func TestGetBaseURL(t *testing.T) {
 		})
 	}
 }
+
+func TestGetFileStoragePath(t *testing.T) {
+	tests := []struct {
+		name string
+		want string
+	}{
+		{
+			name: "Empty file storage path no envs or flags",
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, GetFileStoragePath())
+		})
+	}
+}

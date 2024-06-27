@@ -4,19 +4,21 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/logger"
-	"github.com/mikesvis/short/internal/storage"
+	"github.com/mikesvis/short/internal/storage/memorymap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func init() {
 	logger.Initialize()
+	os.Setenv("FILE_STORAGE_PATH", "")
 	config.InitConfig()
 }
 
@@ -43,7 +45,7 @@ func TestServeGet(t *testing.T) {
 		{
 			name: "Find full url (307)",
 			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{
+				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{
 					"dummyId1": {
 						Full:  "http://www.yandex.ru/verylongpath",
 						Short: "short",
@@ -62,7 +64,7 @@ func TestServeGet(t *testing.T) {
 		}, {
 			name: "Full url does not exist (400)",
 			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				statusCode:  http.StatusBadRequest,
@@ -126,7 +128,7 @@ func TestServePost(t *testing.T) {
 		{
 			name: "Get short url from full (200)",
 			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{
+				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{
 					"dummyId1": {
 						Full:  "http://www.yandex.ru/verylongpath",
 						Short: "short",
@@ -148,7 +150,7 @@ func TestServePost(t *testing.T) {
 		}, {
 			name: "Create short url from full (201)",
 			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				contentType: "text/plain",
@@ -165,7 +167,7 @@ func TestServePost(t *testing.T) {
 		}, {
 			name: "Empty body (400)",
 			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				contentType: "text/plain",
@@ -182,7 +184,7 @@ func TestServePost(t *testing.T) {
 		}, {
 			name: "Bad url (400)",
 			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				contentType: "text/plain",
@@ -233,7 +235,7 @@ func TestServePost(t *testing.T) {
 }
 
 func TestServeOther(t *testing.T) {
-	s := storage.NewStorageURL(map[domain.ID]domain.URL{})
+	s := memorymap.NewStorageURL(map[domain.ID]domain.URL{})
 	handler := NewHandler(s)
 
 	type request struct {
@@ -306,7 +308,7 @@ func TestServeAPIPost(t *testing.T) {
 		{
 			name: "Get short url from full (200)",
 			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{
+				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{
 					"dummyId1": {
 						Full:  "http://www.yandex.ru/verylongpath",
 						Short: "short",
@@ -328,7 +330,7 @@ func TestServeAPIPost(t *testing.T) {
 		}, {
 			name: "Create short url from full (201)",
 			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				contentType: "application/json",
@@ -345,7 +347,7 @@ func TestServeAPIPost(t *testing.T) {
 		}, {
 			name: "Empty url in POST (400)",
 			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				contentType: "text/plain",
@@ -362,7 +364,7 @@ func TestServeAPIPost(t *testing.T) {
 		}, {
 			name: "Bad url (400)",
 			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				contentType: "text/plain",

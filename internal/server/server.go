@@ -8,20 +8,20 @@ import (
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/logger"
-	"github.com/mikesvis/short/internal/storage"
+	"github.com/mikesvis/short/internal/storage/filedb"
+	"github.com/mikesvis/short/internal/storage/memorymap"
 )
 
 var s StorageURL
 
-func init() {
-	s = storage.NewStorageURL(make(map[domain.ID]domain.URL))
-}
-
 func NewRouter() *chi.Mux {
+	s = newStorage(config.GetFileStoragePath())
+	h := NewHandler(s)
+
 	r := chi.NewMux()
 	r.Use(logger.RequestResponseLogger)
 	r.Use(compressor.GZip)
-	h := NewHandler(s)
+
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/shorten", h.ServeAPIPost())
 	})
@@ -35,6 +35,16 @@ func NewRouter() *chi.Mux {
 	})
 
 	return r
+}
+
+func newStorage(fileStoragePath string) StorageURL {
+	if len(fileStoragePath) == 0 {
+		logger.Log.Info("Using in-memory map storage")
+		return memorymap.NewStorageURL(make(map[domain.ID]domain.URL))
+	}
+
+	logger.Log.Infof("Using file storage by path %s", fileStoragePath)
+	return filedb.NewStorageURL(fileStoragePath)
 }
 
 // Запуск сервера
