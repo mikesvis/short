@@ -1,17 +1,14 @@
 package server
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
-	"github.com/mikesvis/short/internal/compressor"
-	"github.com/mikesvis/short/internal/config"
-	"github.com/mikesvis/short/internal/logger"
-	"github.com/mikesvis/short/internal/storage"
 )
 
-func NewRouter(c *config.Config, s storage.Storage, h *Handler) *chi.Mux {
+func NewRouter(h *Handler, middlewares ...func(http.Handler) http.Handler) *chi.Mux {
 	r := chi.NewMux()
-	r.Use(logger.RequestResponseLogger)
-	r.Use(compressor.GZip)
+	r.Use(middlewares...)
 
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/shorten", h.CreateShortURLJSON)

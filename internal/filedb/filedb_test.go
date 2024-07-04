@@ -19,19 +19,19 @@ func TestNewStorageURL(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want *FileDb
+		want *FileDB
 	}{
 		{
 			name: "New storage is of type",
 			args: args{
 				filePath: "dummyFile.json",
 			},
-			want: &FileDb{},
+			want: &FileDB{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			newStorage := NewFileDb(tt.args.filePath)
+			newStorage := NewFileDB(tt.args.filePath)
 			assert.IsType(t, tt.want, newStorage)
 		})
 	}
@@ -65,7 +65,7 @@ func Test_storageURL_Store(t *testing.T) {
 			tmpFile.Close()
 
 			// Using temp file in storage
-			s := &FileDb{
+			s := &FileDB{
 				filePath: tmpFile.Name(),
 			}
 
@@ -121,7 +121,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpFile := createAndSeedTestStorage(t)
-			s := &FileDb{
+			s := &FileDB{
 				filePath: tmpFile,
 			}
 			item, _ := s.GetByFull(tt.args)
@@ -155,7 +155,7 @@ func Test_storageURL_GetByShort(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpFile := createAndSeedTestStorage(t)
-			s := &FileDb{
+			s := &FileDB{
 				filePath: tmpFile,
 			}
 			item, _ := s.GetByShort(tt.args)

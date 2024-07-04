@@ -9,6 +9,7 @@ import (
 
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/logger"
+	"github.com/mikesvis/short/internal/middleware"
 	"github.com/mikesvis/short/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,12 +38,11 @@ func testServer() *httptest.Server {
 	}
 	s := storage.NewStorage("")
 	h := NewHandler(c, s)
-	return httptest.NewServer(NewRouter(c, s, h))
+	l := logger.NewLogger()
+	return httptest.NewServer(NewRouter(h, middleware.RequestResponseLogger(l)))
 }
 
 func TestShortRouter(t *testing.T) {
-	logger.Initialize()
-
 	ts := testServer()
 	defer ts.Close()
 

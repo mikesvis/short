@@ -14,8 +14,9 @@ func NewMemoryMap() *MemoryMap {
 	return &MemoryMap{items: items}
 }
 
-func (s *MemoryMap) Store(u domain.URL) {
+func (s *MemoryMap) Store(u domain.URL) error {
 	s.items[domain.ID(uuid.NewString())] = u
+	return nil
 }
 
 func (s *MemoryMap) GetByFull(fullURL string) (domain.URL, error) {

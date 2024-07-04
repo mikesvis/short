@@ -9,15 +9,10 @@ import (
 
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
-	"github.com/mikesvis/short/internal/logger"
 	"github.com/mikesvis/short/internal/memorymap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func init() {
-	logger.Initialize()
-}
 
 func testConfig() *config.Config {
 	return &config.Config{
