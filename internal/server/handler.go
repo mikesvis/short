@@ -16,11 +16,12 @@ import (
 )
 
 type handler struct {
+	config  *config.Config
 	storage StorageURL
 }
 
-func NewHandler(s StorageURL) *handler {
-	return &handler{storage: s}
+func NewHandler(c *config.Config, s StorageURL) *handler {
+	return &handler{config: c, storage: s}
 }
 
 // Обработка Get
@@ -86,7 +87,7 @@ func (h *handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(status)
-	w.Write([]byte(urlformat.FormatURL(config.GetBaseURL(), item.Short)))
+	w.Write([]byte(urlformat.FormatURL(string(h.config.BaseURL), item.Short)))
 }
 
 // Обработка всего остального
@@ -136,7 +137,7 @@ func (h *handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 
-	response := api.Response{Result: api.URL(urlformat.FormatURL(config.GetBaseURL(), item.Short))}
+	response := api.Response{Result: api.URL(urlformat.FormatURL(string(h.config.BaseURL), item.Short))}
 	jsonEncoder := json.NewEncoder(w)
 	jsonEncoder.Encode(response)
 }

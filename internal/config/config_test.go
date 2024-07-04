@@ -6,53 +6,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetServerAddress(t *testing.T) {
+func TestNew(t *testing.T) {
 	tests := []struct {
 		name string
-		want string
+		want *Config
 	}{
 		{
-			name: "Default server address no envs or flags",
-			want: "localhost:8080",
+			name: "Default config with empty FILE_STORAGE_PATH env variable",
+			want: &Config{
+				ServerAddress:   "localhost:8080",
+				BaseURL:         "http://localhost:8080",
+				FileStoragePath: "",
+			},
 		},
 	}
+	t.Setenv("FILE_STORAGE_PATH", "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, GetServerAddress())
-		})
-	}
-}
-
-func TestGetBaseURL(t *testing.T) {
-	tests := []struct {
-		name string
-		want string
-	}{
-		{
-			name: "Default base url no envs or flags",
-			want: "http://localhost:8080",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, GetBaseURL())
-		})
-	}
-}
-
-func TestGetFileStoragePath(t *testing.T) {
-	tests := []struct {
-		name string
-		want string
-	}{
-		{
-			name: "Empty file storage path no envs or flags",
-			want: "",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, GetFileStoragePath())
+			config := New()
+			assert.EqualValues(t, tt.want, config)
 		})
 	}
 }

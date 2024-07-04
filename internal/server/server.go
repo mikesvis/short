@@ -1,8 +1,6 @@
 package server
 
 import (
-	"net/http"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/mikesvis/short/internal/compressor"
 	"github.com/mikesvis/short/internal/config"
@@ -14,9 +12,9 @@ import (
 
 var s StorageURL
 
-func NewRouter() *chi.Mux {
-	s = newStorage(config.GetFileStoragePath())
-	h := NewHandler(s)
+func NewRouter(c *config.Config) *chi.Mux {
+	s = newStorage(string(c.FileStoragePath))
+	h := NewHandler(c, s)
 
 	r := chi.NewMux()
 	r.Use(logger.RequestResponseLogger)
@@ -49,6 +47,9 @@ func newStorage(fileStoragePath string) StorageURL {
 
 // Запуск сервера
 func Run() error {
-	logger.Log.Infow("Running server", "address", config.GetServerAddress())
-	return http.ListenAndServe(config.GetServerAddress(), NewRouter())
+	config := config.New()
+	logger.Log.Infow("Config initialized", "config", config)
+	return nil
+	//logger.Log.Infow("Running server", "address", config.ServerAddress)
+	//return http.ListenAndServe(config.GetServerAddress(), NewRouter())
 }

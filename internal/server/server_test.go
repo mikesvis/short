@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,12 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, request
 
 func TestShortRouter(t *testing.T) {
 	logger.Initialize()
-	ts := httptest.NewServer(NewRouter())
+	config := &config.Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: "",
+	}
+	ts := httptest.NewServer(NewRouter(config))
 	defer ts.Close()
 
 	startFull := "https://practicum.yandex.ru/"

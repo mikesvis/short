@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/caarlos0/env"
-	"github.com/mikesvis/short/internal/logger"
 	flag "github.com/spf13/pflag"
 )
 
@@ -52,16 +51,17 @@ func (s *FilePath) Type() string {
 	return "string"
 }
 
-var config Config = Config{
-	ServerAddress:   "localhost:8080",
-	BaseURL:         "http://localhost:8080",
-	FileStoragePath: "",
-}
+func New() *Config {
+	config := Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: "",
+	}
 
-func InitConfig() {
 	parseFlags(&config)
 	env.Parse(&config)
-	logger.Log.Infow("Config initialized", "config", config)
+
+	return &config
 }
 
 func parseFlags(c *Config) {
@@ -69,16 +69,4 @@ func parseFlags(c *Config) {
 	flag.VarP(&c.BaseURL, "basepath", "b", "address of short link basepath")
 	flag.VarP(&c.FileStoragePath, "file_storage_path", "f", "path to file storage of URLs")
 	flag.Parse()
-}
-
-func GetServerAddress() string {
-	return string(config.ServerAddress)
-}
-
-func GetBaseURL() string {
-	return string(config.BaseURL)
-}
-
-func GetFileStoragePath() string {
-	return string(config.FileStoragePath)
 }

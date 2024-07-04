@@ -4,7 +4,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -18,11 +17,19 @@ import (
 
 func init() {
 	logger.Initialize()
-	os.Setenv("FILE_STORAGE_PATH", "")
-	config.InitConfig()
+}
+
+func testConfig() *config.Config {
+	return &config.Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: "",
+	}
 }
 
 func TestGetFullURL(t *testing.T) {
+	c := testConfig()
+
 	type args struct {
 		s StorageURL
 	}
@@ -36,6 +43,7 @@ func TestGetFullURL(t *testing.T) {
 		methhod string
 		target  string
 	}
+
 	tests := []struct {
 		name    string
 		args    args
@@ -82,7 +90,7 @@ func TestGetFullURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.request.methhod, tt.request.target, nil)
 			w := httptest.NewRecorder()
-			handler := NewHandler(tt.args.s)
+			handler := NewHandler(c, tt.args.s)
 			handle := http.HandlerFunc(handler.GetFullURL)
 			handle(w, request)
 			result := w.Result()
@@ -104,6 +112,8 @@ func TestGetFullURL(t *testing.T) {
 }
 
 func TestCreateShortURLText(t *testing.T) {
+	c := testConfig()
+
 	type args struct {
 		s StorageURL
 	}
@@ -140,7 +150,7 @@ func TestCreateShortURLText(t *testing.T) {
 				statusCode:  http.StatusOK,
 				isNew:       false,
 				wantError:   false,
-				body:        config.GetBaseURL() + "/short",
+				body:        string(c.BaseURL) + "/short",
 			},
 			request: request{
 				method: "POST",
@@ -157,7 +167,7 @@ func TestCreateShortURLText(t *testing.T) {
 				statusCode:  http.StatusCreated,
 				isNew:       true,
 				wantError:   false,
-				body:        config.GetBaseURL(),
+				body:        string(c.BaseURL),
 			},
 			request: request{
 				method: "POST",
@@ -204,7 +214,7 @@ func TestCreateShortURLText(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body))
 			w := httptest.NewRecorder()
-			handler := NewHandler(tt.args.s)
+			handler := NewHandler(c, tt.args.s)
 			handle := http.HandlerFunc(handler.CreateShortURLText)
 			handle(w, request)
 			result := w.Result()
@@ -235,8 +245,10 @@ func TestCreateShortURLText(t *testing.T) {
 }
 
 func TestFail(t *testing.T) {
+	c := testConfig()
+
 	s := memorymap.NewStorageURL(map[domain.ID]domain.URL{})
-	handler := NewHandler(s)
+	handler := NewHandler(c, s)
 
 	type request struct {
 		method string
@@ -283,6 +295,7 @@ func TestFail(t *testing.T) {
 }
 
 func TestCreateShortURLJSON(t *testing.T) {
+	c := testConfig()
 
 	type args struct {
 		s StorageURL
@@ -320,7 +333,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 				statusCode:  http.StatusOK,
 				isNew:       false,
 				wantError:   false,
-				body:        strings.Join([]string{`{"result":"`, config.GetBaseURL(), `/short"}`}, ""),
+				body:        strings.Join([]string{`{"result":"`, string(c.BaseURL), `/short"}`}, ""),
 			},
 			request: request{
 				method: "POST",
@@ -337,7 +350,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 				statusCode:  http.StatusCreated,
 				isNew:       true,
 				wantError:   false,
-				body:        config.GetBaseURL(),
+				body:        string(c.BaseURL),
 			},
 			request: request{
 				method: "POST",
@@ -384,7 +397,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body))
 			w := httptest.NewRecorder()
-			handler := NewHandler(tt.args.s)
+			handler := NewHandler(c, tt.args.s)
 			handle := http.HandlerFunc(handler.CreateShortURLJSON)
 			handle(w, request)
 			result := w.Result()
