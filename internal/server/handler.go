@@ -12,22 +12,23 @@ import (
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/keygen"
-	"github.com/mikesvis/short/internal/urlformat"
+	"github.com/mikesvis/short/internal/storage"
+	"github.com/mikesvis/short/pkg/urlformat"
 )
 
-type handler struct {
+type Handler struct {
 	config  *config.Config
-	storage StorageURL
+	storage storage.Storage
 }
 
-func NewHandler(c *config.Config, s StorageURL) *handler {
-	return &handler{config: c, storage: s}
+func NewHandler(config *config.Config, storage storage.Storage) *Handler {
+	return &Handler{config, storage}
 }
 
 // Обработка Get
 // Получение короткого URL из запроса
 // Поиск в условной "базе" полного URL по сокращенному
-func (h *handler) GetFullURL(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 	shortKey := strings.TrimLeft(r.RequestURI, "/")
 	item, err := h.storage.GetByShort(shortKey)
 	if err != nil {
@@ -51,7 +52,7 @@ func (h *handler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 // Проверка на пустое тело запроса
 // Проверка на валидность URL
 // Запись сокращенного Url в условную "базу" если нет такого ключа
-func (h *handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -91,7 +92,7 @@ func (h *handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 }
 
 // Обработка всего остального
-func (h *handler) Fail(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Fail(w http.ResponseWriter, r *http.Request) {
 	err := errors.New("bad protocol")
 	http.Error(w, err.Error(), http.StatusBadRequest)
 }
@@ -101,7 +102,7 @@ func (h *handler) Fail(w http.ResponseWriter, r *http.Request) {
 // Проверка на пустой URL
 // Проверка на валидность URL
 // Запись сокращенного URL в условную "базу" если нет такого ключа
-func (h *handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 	var request api.Request
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

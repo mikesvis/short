@@ -23,7 +23,7 @@ func TestNew(t *testing.T) {
 	t.Setenv("FILE_STORAGE_PATH", "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := New()
+			config := NewConfig()
 			assert.EqualValues(t, tt.want, config)
 		})
 	}

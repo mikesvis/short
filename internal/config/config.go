@@ -51,7 +51,7 @@ func (s *FilePath) Type() string {
 	return "string"
 }
 
-func New() *Config {
+func NewConfig() *Config {
 	config := Config{
 		ServerAddress:   "localhost:8080",
 		BaseURL:         "http://localhost:8080",

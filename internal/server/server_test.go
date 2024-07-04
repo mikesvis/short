@@ -9,6 +9,7 @@ import (
 
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/logger"
+	"github.com/mikesvis/short/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,14 +29,21 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, request
 	return resp, string(respBody)
 }
 
-func TestShortRouter(t *testing.T) {
-	logger.Initialize()
-	config := &config.Config{
+func testServer() *httptest.Server {
+	c := &config.Config{
 		ServerAddress:   "localhost:8080",
 		BaseURL:         "http://localhost:8080",
 		FileStoragePath: "",
 	}
-	ts := httptest.NewServer(NewRouter(config))
+	s := storage.NewStorage("")
+	h := NewHandler(c, s)
+	return httptest.NewServer(NewRouter(c, s, h))
+}
+
+func TestShortRouter(t *testing.T) {
+	logger.Initialize()
+
+	ts := testServer()
 	defer ts.Close()
 
 	startFull := "https://practicum.yandex.ru/"

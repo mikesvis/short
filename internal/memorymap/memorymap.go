@@ -9,7 +9,8 @@ type MemoryMap struct {
 	items map[domain.ID]domain.URL
 }
 
-func NewMemoryMap(items map[domain.ID]domain.URL) *MemoryMap {
+func NewMemoryMap() *MemoryMap {
+	items := make(map[domain.ID]domain.URL)
 	return &MemoryMap{items: items}
 }
 

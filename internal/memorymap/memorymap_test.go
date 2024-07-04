@@ -28,7 +28,7 @@ func TestNewStorageURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			newStorage := NewMemoryMap(tt.args.items)
+			newStorage := NewMemoryMap()
 			assert.IsType(t, tt.want, newStorage)
 		})
 	}
