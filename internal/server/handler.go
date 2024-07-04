@@ -28,8 +28,14 @@ func NewHandler(s StorageURL) *handler {
 // Поиск в условной "базе" полного URL по сокращенному
 func (h *handler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 	shortKey := strings.TrimLeft(r.RequestURI, "/")
-	item, isExist := h.storage.GetByShort(shortKey)
-	if !isExist {
+	item, err := h.storage.GetByShort(shortKey)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	if (item == domain.URL{}) {
 		err := fmt.Errorf("full url is not found for %s", shortKey)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
@@ -62,8 +68,14 @@ func (h *handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 	URL := urlformat.SanitizeURL(string(body))
 	status := http.StatusOK
 
-	item, isExist := h.storage.GetByFull(URL)
-	if !isExist {
+	item, err := h.storage.GetByFull(URL)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	if (item == domain.URL{}) {
 		item = domain.URL{
 			Full:  URL,
 			Short: keygen.GetRandkey(keygen.KeyLength),
@@ -104,10 +116,16 @@ func (h *handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	URL = urlformat.SanitizeURL(URL)
-
 	status := http.StatusOK
-	item, isExist := h.storage.GetByFull(URL)
-	if !isExist {
+
+	item, err := h.storage.GetByFull(URL)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	if (item == domain.URL{}) {
 		item = domain.URL{
 			Full:  URL,
 			Short: keygen.GetRandkey(keygen.KeyLength),

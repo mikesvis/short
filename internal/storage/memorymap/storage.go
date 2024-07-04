@@ -17,26 +17,26 @@ func (s *storageURL) Store(u domain.URL) {
 	s.items[domain.ID(uuid.NewString())] = u
 }
 
-func (s *storageURL) GetByFull(fullURL string) (domain.URL, bool) {
+func (s *storageURL) GetByFull(fullURL string) (domain.URL, error) {
 	for _, v := range s.items {
 		if string(v.Full) != fullURL {
 			continue
 		}
 
-		return v, true
+		return v, nil
 	}
 
-	return domain.URL{}, false
+	return domain.URL{}, nil
 }
 
-func (s *storageURL) GetByShort(shortURL string) (domain.URL, bool) {
+func (s *storageURL) GetByShort(shortURL string) (domain.URL, error) {
 	for _, v := range s.items {
 		if string(v.Short) != shortURL {
 			continue
 		}
 
-		return v, true
+		return v, nil
 	}
 
-	return domain.URL{}, false
+	return domain.URL{}, nil
 }

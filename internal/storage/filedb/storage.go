@@ -11,7 +11,7 @@ import (
 	"github.com/mikesvis/short/internal/logger"
 )
 
-type item struct {
+type fileDbItem struct {
 	UUID        string `json:"uuid"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
@@ -21,7 +21,6 @@ type storageURL struct {
 	filePath string
 }
 
-// TODO: Тут долго думал что хранить в структуре - решил хранить только путь к файлу
 func NewStorageURL(fileName string) *storageURL {
 	s := &storageURL{
 		filePath: fileName,
@@ -30,7 +29,6 @@ func NewStorageURL(fileName string) *storageURL {
 	return s
 }
 
-// Открываем файл на запись, пишем новый item
 func (s *storageURL) Store(u domain.URL) {
 	file, err := os.OpenFile(s.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -40,7 +38,7 @@ func (s *storageURL) Store(u domain.URL) {
 
 	encoder := json.NewEncoder(file)
 
-	item := item{
+	item := fileDbItem{
 		UUID:        uuid.NewString(),
 		ShortURL:    u.Short,
 		OriginalURL: u.Full,
@@ -51,22 +49,15 @@ func (s *storageURL) Store(u domain.URL) {
 	}
 }
 
-func (s *storageURL) GetByFull(fullURL string) (domain.URL, bool) {
+func (s *storageURL) GetByFull(fullURL string) (domain.URL, error) {
 	return s.findInFile("OriginalURL", fullURL)
 }
 
-func (s *storageURL) GetByShort(shortURL string) (domain.URL, bool) {
+func (s *storageURL) GetByShort(shortURL string) (domain.URL, error) {
 	return s.findInFile("ShortURL", shortURL)
 }
 
-// TODO: Вообще это вариация на тему поскольку нужно искать совпадения в разных полях структуры
-//
-//		     Сделал через рефлексию, но в продовом окружении так наверное лучше не делать,
-//			 искать другое решение (хотя бы банально двумя разными функциями).
-//			 Еще была мысль опираться на формат данных: полный url никогда не будет похож на сокращенный
-//	      	 и понимать "что в итоге нашлось short или original" на этом основании - но это попахивает наркоманией
-//		     я такое не люблю :)
-func (s *storageURL) findInFile(field, needle string) (domain.URL, bool) {
+func (s *storageURL) findInFile(field, needle string) (domain.URL, error) {
 	file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		logger.Log.Fatalf("Error opennig storage file. %v", err)
@@ -76,24 +67,24 @@ func (s *storageURL) findInFile(field, needle string) (domain.URL, bool) {
 	decoder := json.NewDecoder(file)
 
 	for {
-		var i item
+		var i fileDbItem
 		if err := decoder.Decode(&i); err == io.EOF {
 			break
 		} else if err != nil {
-			logger.Log.Fatalf("Error reading from file storage. %v", err)
+			return domain.URL{}, err
 		}
 
 		if getField(&i, field) != needle {
 			continue
 		}
 
-		return domain.URL{Full: i.OriginalURL, Short: i.ShortURL}, true
+		return domain.URL{Full: i.OriginalURL, Short: i.ShortURL}, nil
 	}
 
-	return domain.URL{}, false
+	return domain.URL{}, nil
 }
 
-func getField(i *item, field string) string {
+func getField(i *fileDbItem, field string) string {
 	r := reflect.ValueOf(i)
 	f := reflect.Indirect(r).FieldByName(field)
 	return string(f.String())
