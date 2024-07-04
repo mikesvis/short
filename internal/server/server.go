@@ -23,15 +23,15 @@ func NewRouter() *chi.Mux {
 	r.Use(compressor.GZip)
 
 	r.Route("/api", func(r chi.Router) {
-		r.Post("/shorten", h.ServeAPIPost())
+		r.Post("/shorten", h.CreateShortURLJSON)
 	})
 	r.Route("/", func(r chi.Router) {
-		r.Get("/{shortKey}", h.ServeGet())
-		r.Post("/", h.ServePost())
-		r.Get("/", h.ServeOther)
-		r.Patch("/", h.ServeOther)
-		r.Put("/", h.ServeOther)
-		r.Delete("/", h.ServeOther)
+		r.Get("/{shortKey}", h.GetFullURL)
+		r.Post("/", h.CreateShortURLText)
+		r.Get("/", h.Fail)
+		r.Patch("/", h.Fail)
+		r.Put("/", h.Fail)
+		r.Delete("/", h.Fail)
 	})
 
 	return r

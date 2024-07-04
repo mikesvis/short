@@ -22,7 +22,7 @@ func init() {
 	config.InitConfig()
 }
 
-func TestServeGet(t *testing.T) {
+func TestGetFullURL(t *testing.T) {
 	type args struct {
 		s StorageURL
 	}
@@ -83,7 +83,7 @@ func TestServeGet(t *testing.T) {
 			request := httptest.NewRequest(tt.request.methhod, tt.request.target, nil)
 			w := httptest.NewRecorder()
 			handler := NewHandler(tt.args.s)
-			handle := http.HandlerFunc(handler.ServeGet())
+			handle := http.HandlerFunc(handler.GetFullURL)
 			handle(w, request)
 			result := w.Result()
 
@@ -103,7 +103,7 @@ func TestServeGet(t *testing.T) {
 	}
 }
 
-func TestServePost(t *testing.T) {
+func TestCreateShortURLText(t *testing.T) {
 	type args struct {
 		s StorageURL
 	}
@@ -205,7 +205,7 @@ func TestServePost(t *testing.T) {
 			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body))
 			w := httptest.NewRecorder()
 			handler := NewHandler(tt.args.s)
-			handle := http.HandlerFunc(handler.ServePost())
+			handle := http.HandlerFunc(handler.CreateShortURLText)
 			handle(w, request)
 			result := w.Result()
 
@@ -234,7 +234,7 @@ func TestServePost(t *testing.T) {
 	}
 }
 
-func TestServeOther(t *testing.T) {
+func TestFail(t *testing.T) {
 	s := memorymap.NewStorageURL(map[domain.ID]domain.URL{})
 	handler := NewHandler(s)
 
@@ -267,7 +267,7 @@ func TestServeOther(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.request.method, tt.request.target, nil)
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(handler.ServeOther)
+			h := http.HandlerFunc(handler.Fail)
 			h(w, request)
 			result := w.Result()
 
@@ -282,7 +282,7 @@ func TestServeOther(t *testing.T) {
 	}
 }
 
-func TestServeAPIPost(t *testing.T) {
+func TestCreateShortURLJSON(t *testing.T) {
 
 	type args struct {
 		s StorageURL
@@ -385,7 +385,7 @@ func TestServeAPIPost(t *testing.T) {
 			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body))
 			w := httptest.NewRecorder()
 			handler := NewHandler(tt.args.s)
-			handle := http.HandlerFunc(handler.ServeAPIPost())
+			handle := http.HandlerFunc(handler.CreateShortURLJSON)
 			handle(w, request)
 			result := w.Result()
 
