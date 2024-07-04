@@ -53,7 +53,7 @@ func TestGetFullURL(t *testing.T) {
 		{
 			name: "Find full url (307)",
 			args: args{
-				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{
+				s: memorymap.NewMemoryMap(map[domain.ID]domain.URL{
 					"dummyId1": {
 						Full:  "http://www.yandex.ru/verylongpath",
 						Short: "short",
@@ -72,7 +72,7 @@ func TestGetFullURL(t *testing.T) {
 		}, {
 			name: "Full url does not exist (400)",
 			args: args{
-				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewMemoryMap(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				statusCode:  http.StatusBadRequest,
@@ -138,7 +138,7 @@ func TestCreateShortURLText(t *testing.T) {
 		{
 			name: "Get short url from full (200)",
 			args: args{
-				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{
+				s: memorymap.NewMemoryMap(map[domain.ID]domain.URL{
 					"dummyId1": {
 						Full:  "http://www.yandex.ru/verylongpath",
 						Short: "short",
@@ -160,7 +160,7 @@ func TestCreateShortURLText(t *testing.T) {
 		}, {
 			name: "Create short url from full (201)",
 			args: args{
-				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewMemoryMap(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				contentType: "text/plain",
@@ -177,7 +177,7 @@ func TestCreateShortURLText(t *testing.T) {
 		}, {
 			name: "Empty body (400)",
 			args: args{
-				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewMemoryMap(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				contentType: "text/plain",
@@ -194,7 +194,7 @@ func TestCreateShortURLText(t *testing.T) {
 		}, {
 			name: "Bad url (400)",
 			args: args{
-				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewMemoryMap(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				contentType: "text/plain",
@@ -247,7 +247,7 @@ func TestCreateShortURLText(t *testing.T) {
 func TestFail(t *testing.T) {
 	c := testConfig()
 
-	s := memorymap.NewStorageURL(map[domain.ID]domain.URL{})
+	s := memorymap.NewMemoryMap(map[domain.ID]domain.URL{})
 	handler := NewHandler(c, s)
 
 	type request struct {
@@ -321,7 +321,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 		{
 			name: "Get short url from full (200)",
 			args: args{
-				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{
+				s: memorymap.NewMemoryMap(map[domain.ID]domain.URL{
 					"dummyId1": {
 						Full:  "http://www.yandex.ru/verylongpath",
 						Short: "short",
@@ -343,7 +343,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 		}, {
 			name: "Create short url from full (201)",
 			args: args{
-				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewMemoryMap(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				contentType: "application/json",
@@ -360,7 +360,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 		}, {
 			name: "Empty url in POST (400)",
 			args: args{
-				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewMemoryMap(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				contentType: "text/plain",
@@ -377,7 +377,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 		}, {
 			name: "Bad url (400)",
 			args: args{
-				s: memorymap.NewStorageURL(map[domain.ID]domain.URL{}),
+				s: memorymap.NewMemoryMap(map[domain.ID]domain.URL{}),
 			},
 			want: want{
 				contentType: "text/plain",

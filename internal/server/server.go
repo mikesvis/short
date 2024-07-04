@@ -1,6 +1,8 @@
 package server
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/mikesvis/short/internal/compressor"
 	"github.com/mikesvis/short/internal/config"
@@ -38,18 +40,16 @@ func NewRouter(c *config.Config) *chi.Mux {
 func newStorage(fileStoragePath string) StorageURL {
 	if len(fileStoragePath) == 0 {
 		logger.Log.Info("Using in-memory map storage")
-		return memorymap.NewStorageURL(make(map[domain.ID]domain.URL))
+		return memorymap.NewMemoryMap(make(map[domain.ID]domain.URL))
 	}
 
 	logger.Log.Infof("Using file storage by path %s", fileStoragePath)
-	return filedb.NewStorageURL(fileStoragePath)
+	return filedb.NewFileDb(fileStoragePath)
 }
 
 // Запуск сервера
 func Run() error {
 	config := config.New()
 	logger.Log.Infow("Config initialized", "config", config)
-	return nil
-	//logger.Log.Infow("Running server", "address", config.ServerAddress)
-	//return http.ListenAndServe(config.GetServerAddress(), NewRouter())
+	return http.ListenAndServe(string(config.ServerAddress), NewRouter(config))
 }

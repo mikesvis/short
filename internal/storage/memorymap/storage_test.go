@@ -16,19 +16,19 @@ func TestNewStorageURL(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want *storageURL
+		want *MemoryMap
 	}{
 		{
 			name: "New storage is of type",
 			args: args{
 				items: map[domain.ID]domain.URL{},
 			},
-			want: &storageURL{},
+			want: &MemoryMap{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			newStorage := NewStorageURL(tt.args.items)
+			newStorage := NewMemoryMap(tt.args.items)
 			assert.IsType(t, tt.want, newStorage)
 		})
 	}
@@ -64,7 +64,7 @@ func Test_storageURL_Store(t *testing.T) {
 	uuid.SetRand(rand.New(rand.NewSource(1)))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &storageURL{
+			s := &MemoryMap{
 				items: tt.fields.items,
 			}
 			s.Store(tt.args)
@@ -118,7 +118,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &storageURL{
+			s := &MemoryMap{
 				items: tt.fields.items,
 			}
 			item, _ := s.GetByFull(tt.args)
@@ -173,7 +173,7 @@ func Test_storageURL_GetByShort(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &storageURL{
+			s := &MemoryMap{
 				items: tt.fields.items,
 			}
 			item, _ := s.GetByShort(tt.args)

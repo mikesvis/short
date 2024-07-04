@@ -17,19 +17,19 @@ type fileDbItem struct {
 	OriginalURL string `json:"original_url"`
 }
 
-type storageURL struct {
+type FileDb struct {
 	filePath string
 }
 
-func NewStorageURL(fileName string) *storageURL {
-	s := &storageURL{
+func NewFileDb(fileName string) *FileDb {
+	s := &FileDb{
 		filePath: fileName,
 	}
 
 	return s
 }
 
-func (s *storageURL) Store(u domain.URL) {
+func (s *FileDb) Store(u domain.URL) {
 	file, err := os.OpenFile(s.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		logger.Log.Fatalf("Error opennig storage file. %v", err)
@@ -49,15 +49,15 @@ func (s *storageURL) Store(u domain.URL) {
 	}
 }
 
-func (s *storageURL) GetByFull(fullURL string) (domain.URL, error) {
+func (s *FileDb) GetByFull(fullURL string) (domain.URL, error) {
 	return s.findInFile("OriginalURL", fullURL)
 }
 
-func (s *storageURL) GetByShort(shortURL string) (domain.URL, error) {
+func (s *FileDb) GetByShort(shortURL string) (domain.URL, error) {
 	return s.findInFile("ShortURL", shortURL)
 }
 
-func (s *storageURL) findInFile(field, needle string) (domain.URL, error) {
+func (s *FileDb) findInFile(field, needle string) (domain.URL, error) {
 	file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		logger.Log.Fatalf("Error opennig storage file. %v", err)

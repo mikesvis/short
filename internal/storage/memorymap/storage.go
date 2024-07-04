@@ -5,19 +5,19 @@ import (
 	"github.com/mikesvis/short/internal/domain"
 )
 
-type storageURL struct {
+type MemoryMap struct {
 	items map[domain.ID]domain.URL
 }
 
-func NewStorageURL(items map[domain.ID]domain.URL) *storageURL {
-	return &storageURL{items: items}
+func NewMemoryMap(items map[domain.ID]domain.URL) *MemoryMap {
+	return &MemoryMap{items: items}
 }
 
-func (s *storageURL) Store(u domain.URL) {
+func (s *MemoryMap) Store(u domain.URL) {
 	s.items[domain.ID(uuid.NewString())] = u
 }
 
-func (s *storageURL) GetByFull(fullURL string) (domain.URL, error) {
+func (s *MemoryMap) GetByFull(fullURL string) (domain.URL, error) {
 	for _, v := range s.items {
 		if string(v.Full) != fullURL {
 			continue
@@ -29,7 +29,7 @@ func (s *storageURL) GetByFull(fullURL string) (domain.URL, error) {
 	return domain.URL{}, nil
 }
 
-func (s *storageURL) GetByShort(shortURL string) (domain.URL, error) {
+func (s *MemoryMap) GetByShort(shortURL string) (domain.URL, error) {
 	for _, v := range s.items {
 		if string(v.Short) != shortURL {
 			continue
