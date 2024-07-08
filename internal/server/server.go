@@ -4,33 +4,23 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/mikesvis/short/internal/config"
-	"github.com/mikesvis/short/internal/domain"
-	"github.com/mikesvis/short/internal/storage"
 )
 
-var s StorageURL
-
-func init() {
-	s = storage.NewStorageURL(make(map[domain.ID]domain.URL))
-}
-
-func NewRouter() *chi.Mux {
+func NewRouter(h *Handler, middlewares ...func(http.Handler) http.Handler) *chi.Mux {
 	r := chi.NewMux()
-	h := NewHandler(s)
+	r.Use(middlewares...)
+
+	r.Route("/api", func(r chi.Router) {
+		r.Post("/shorten", h.CreateShortURLJSON)
+	})
 	r.Route("/", func(r chi.Router) {
-		r.Get("/{shortKey}", h.ServeGet())
-		r.Post("/", h.ServePost())
-		r.Get("/", h.ServeOther)
-		r.Patch("/", h.ServeOther)
-		r.Put("/", h.ServeOther)
-		r.Delete("/", h.ServeOther)
+		r.Get("/{shortKey}", h.GetFullURL)
+		r.Post("/", h.CreateShortURLText)
+		r.Get("/", h.Fail)
+		r.Patch("/", h.Fail)
+		r.Put("/", h.Fail)
+		r.Delete("/", h.Fail)
 	})
 
 	return r
-}
-
-// Запуск сервера
-func Run() error {
-	return http.ListenAndServe(config.GetServerAddress(), NewRouter())
 }

@@ -9,15 +9,27 @@ import (
 
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
-	"github.com/mikesvis/short/internal/storage"
+	"github.com/mikesvis/short/internal/memorymap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestServeGet(t *testing.T) {
-	type args struct {
-		s StorageURL
+func testConfig() *config.Config {
+	return &config.Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: "",
 	}
+}
+
+func TestGetFullURL(t *testing.T) {
+	c := testConfig()
+	s := memorymap.NewMemoryMap()
+	s.Store(domain.URL{
+		Full:  "http://www.yandex.ru/verylongpath",
+		Short: "short",
+	})
+
 	type want struct {
 		statusCode  int
 		newLocation string
@@ -28,22 +40,14 @@ func TestServeGet(t *testing.T) {
 		methhod string
 		target  string
 	}
+
 	tests := []struct {
 		name    string
-		args    args
 		want    want
 		request request
 	}{
 		{
 			name: "Find full url (307)",
-			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{
-					"dummyId1": {
-						Full:  "http://www.yandex.ru/verylongpath",
-						Short: "short",
-					},
-				}),
-			},
 			want: want{
 				statusCode:  http.StatusTemporaryRedirect,
 				newLocation: "http://www.yandex.ru/verylongpath",
@@ -55,9 +59,6 @@ func TestServeGet(t *testing.T) {
 			},
 		}, {
 			name: "Full url does not exist (400)",
-			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
-			},
 			want: want{
 				statusCode:  http.StatusBadRequest,
 				newLocation: "",
@@ -74,8 +75,8 @@ func TestServeGet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.request.methhod, tt.request.target, nil)
 			w := httptest.NewRecorder()
-			handler := NewHandler(tt.args.s)
-			handle := http.HandlerFunc(handler.ServeGet())
+			handler := NewHandler(c, s)
+			handle := http.HandlerFunc(handler.GetFullURL)
 			handle(w, request)
 			result := w.Result()
 
@@ -95,11 +96,14 @@ func TestServeGet(t *testing.T) {
 	}
 }
 
-func TestServePost(t *testing.T) {
-	config.InitConfig()
-	type args struct {
-		s StorageURL
-	}
+func TestCreateShortURLText(t *testing.T) {
+	c := testConfig()
+	s := memorymap.NewMemoryMap()
+	s.Store(domain.URL{
+		Full:  "http://www.yandex.ru/verylongpath",
+		Short: "short",
+	})
+
 	type want struct {
 		contentType string
 		statusCode  int
@@ -114,26 +118,17 @@ func TestServePost(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		args    args
 		want    want
 		request request
 	}{
 		{
 			name: "Get short url from full (200)",
-			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{
-					"dummyId1": {
-						Full:  "http://www.yandex.ru/verylongpath",
-						Short: "short",
-					},
-				}),
-			},
 			want: want{
 				contentType: "text/plain",
 				statusCode:  http.StatusOK,
 				isNew:       false,
 				wantError:   false,
-				body:        config.GetBaseURL() + "/short",
+				body:        string(c.BaseURL) + "/short",
 			},
 			request: request{
 				method: "POST",
@@ -142,54 +137,45 @@ func TestServePost(t *testing.T) {
 			},
 		}, {
 			name: "Create short url from full (201)",
-			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
-			},
 			want: want{
 				contentType: "text/plain",
 				statusCode:  http.StatusCreated,
 				isNew:       true,
 				wantError:   false,
-				body:        config.GetBaseURL(),
+				body:        string(c.BaseURL),
 			},
 			request: request{
 				method: "POST",
 				target: "/",
-				body:   "http://www.yandex.ru/verylongpath",
+				body:   "http://www.yandex.ru/very",
 			},
 		}, {
 			name: "Empty body (400)",
-			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
-			},
 			want: want{
 				contentType: "text/plain",
 				statusCode:  http.StatusBadRequest,
 				isNew:       false,
 				wantError:   true,
-				body:        "",
+				body:        "URL can not be empty",
 			},
 			request: request{
 				method: "POST",
 				target: "/",
-				body:   "POST body can not be empty",
+				body:   "",
 			},
 		}, {
 			name: "Bad url (400)",
-			args: args{
-				s: storage.NewStorageURL(map[domain.ID]domain.URL{}),
-			},
 			want: want{
 				contentType: "text/plain",
 				statusCode:  http.StatusBadRequest,
 				isNew:       false,
 				wantError:   true,
-				body:        "",
+				body:        "URL is not an URL format",
 			},
 			request: request{
 				method: "POST",
-				target: "/ya.ru",
-				body:   "POST body is not an URL format",
+				target: "/",
+				body:   "!!!",
 			},
 		},
 	}
@@ -197,8 +183,8 @@ func TestServePost(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body))
 			w := httptest.NewRecorder()
-			handler := NewHandler(tt.args.s)
-			handle := http.HandlerFunc(handler.ServePost())
+			handler := NewHandler(c, s)
+			handle := http.HandlerFunc(handler.CreateShortURLText)
 			handle(w, request)
 			result := w.Result()
 
@@ -227,9 +213,11 @@ func TestServePost(t *testing.T) {
 	}
 }
 
-func TestServeOther(t *testing.T) {
-	s := storage.NewStorageURL(map[domain.ID]domain.URL{})
-	handler := NewHandler(s)
+func TestFail(t *testing.T) {
+	c := testConfig()
+
+	s := memorymap.NewMemoryMap()
+	handler := NewHandler(c, s)
 
 	type request struct {
 		method string
@@ -260,7 +248,7 @@ func TestServeOther(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.request.method, tt.request.target, nil)
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(handler.ServeOther)
+			h := http.HandlerFunc(handler.Fail)
 			h(w, request)
 			result := w.Result()
 
@@ -271,6 +259,122 @@ func TestServeOther(t *testing.T) {
 			err = result.Body.Close()
 			require.NoError(t, err)
 			require.Contains(t, string(response), tt.want.body)
+		})
+	}
+}
+
+func TestCreateShortURLJSON(t *testing.T) {
+	c := testConfig()
+	s := memorymap.NewMemoryMap()
+	s.Store(domain.URL{
+		Full:  "http://www.yandex.ru/verylongpath",
+		Short: "short",
+	})
+	type want struct {
+		contentType string
+		statusCode  int
+		isNew       bool
+		wantError   bool
+		body        string
+	}
+	type request struct {
+		method string
+		target string
+		body   string
+	}
+	tests := []struct {
+		name    string
+		want    want
+		request request
+	}{
+		{
+			name: "Get short url from full (200)",
+			want: want{
+				contentType: "application/json",
+				statusCode:  http.StatusOK,
+				isNew:       false,
+				wantError:   false,
+				body:        strings.Join([]string{`{"result":"`, string(c.BaseURL), `/short"}`}, ""),
+			},
+			request: request{
+				method: "POST",
+				target: "/api/shorten",
+				body:   `{"url":"http://www.yandex.ru/verylongpath"}`,
+			},
+		}, {
+			name: "Create short url from full (201)",
+			want: want{
+				contentType: "application/json",
+				statusCode:  http.StatusCreated,
+				isNew:       true,
+				wantError:   false,
+				body:        string(c.BaseURL),
+			},
+			request: request{
+				method: "POST",
+				target: "/api/shorten",
+				body:   `{"url":"http://www.yandex.ru/very"}`,
+			},
+		}, {
+			name: "Empty url in POST (400)",
+			want: want{
+				contentType: "text/plain",
+				statusCode:  http.StatusBadRequest,
+				isNew:       false,
+				wantError:   true,
+				body:        "URL can not be empty",
+			},
+			request: request{
+				method: "POST",
+				target: "/api/shorten",
+				body:   `{"url":""}`,
+			},
+		}, {
+			name: "Bad url (400)",
+			want: want{
+				contentType: "text/plain",
+				statusCode:  http.StatusBadRequest,
+				isNew:       false,
+				wantError:   true,
+				body:        "URL is not an URL format",
+			},
+			request: request{
+				method: "POST",
+				target: "/api/shorten",
+				body:   `{"url":"DOOM-is-a-great-game!"}`,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body))
+			w := httptest.NewRecorder()
+			handler := NewHandler(c, s)
+			handle := http.HandlerFunc(handler.CreateShortURLJSON)
+			handle(w, request)
+			result := w.Result()
+
+			assert.Equal(t, tt.want.statusCode, result.StatusCode)
+
+			response, err := io.ReadAll(result.Body)
+			require.NoError(t, err)
+			err = result.Body.Close()
+			require.NoError(t, err)
+
+			if tt.want.wantError {
+				require.Contains(t, string(response), tt.want.body)
+				return
+			}
+
+			assert.Equal(t, tt.want.contentType, result.Header.Get("Content-Type"))
+
+			if tt.want.isNew {
+				assert.NotEmpty(t, string(response))
+				assert.Contains(t, string(response), tt.want.body)
+				return
+			}
+
+			assert.Contains(t, string(response), tt.want.body)
 		})
 	}
 }

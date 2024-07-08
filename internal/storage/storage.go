@@ -1,42 +1,21 @@
 package storage
 
 import (
-	"github.com/google/uuid"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/filedb"
+	"github.com/mikesvis/short/internal/memorymap"
 )
 
-type storageURL struct {
-	items map[domain.ID]domain.URL
+type Storage interface {
+	Store(domain.URL) error
+	GetByFull(fullURL string) (domain.URL, error)
+	GetByShort(shortURL string) (domain.URL, error)
 }
 
-func NewStorageURL(items map[domain.ID]domain.URL) *storageURL {
-	return &storageURL{items: items}
-}
-
-func (s *storageURL) Store(u domain.URL) {
-	s.items[domain.ID(uuid.NewString())] = u
-}
-
-func (s *storageURL) GetByFull(fullURL string) domain.URL {
-	for _, v := range s.items {
-		if string(v.Full) != fullURL {
-			continue
-		}
-
-		return v
+func NewStorage(fileStoragePath string) Storage {
+	if len(fileStoragePath) == 0 {
+		return memorymap.NewMemoryMap()
 	}
 
-	return domain.URL{}
-}
-
-func (s *storageURL) GetByShort(shortURL string) domain.URL {
-	for _, v := range s.items {
-		if string(v.Short) != shortURL {
-			continue
-		}
-
-		return v
-	}
-
-	return domain.URL{}
+	return filedb.NewFileDB(fileStoragePath)
 }

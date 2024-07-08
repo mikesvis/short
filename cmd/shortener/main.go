@@ -1,13 +1,11 @@
 package main
 
 import (
-	"github.com/mikesvis/short/internal/config"
-	"github.com/mikesvis/short/internal/server"
+	"github.com/mikesvis/short/internal/app"
 )
 
 func main() {
-	config.InitConfig()
-	if err := server.Run(); err != nil {
-		panic(err)
-	}
+	app := app.New()
+
+	app.Run()
 }
