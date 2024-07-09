@@ -23,7 +23,7 @@ type App struct {
 func New() *App {
 	config := config.NewConfig()
 	logger := logger.NewLogger()
-	storage := storage.NewStorage(string(config.FileStoragePath))
+	storage := storage.NewStorage(config)
 	handler := server.NewHandler(config, storage)
 	router := server.NewRouter(
 		handler,

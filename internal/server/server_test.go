@@ -35,8 +35,9 @@ func testServer() *httptest.Server {
 		ServerAddress:   "localhost:8080",
 		BaseURL:         "http://localhost:8080",
 		FileStoragePath: "",
+		DatabaseDSN:     "",
 	}
-	s := storage.NewStorage("")
+	s := storage.NewStorage(c)
 	h := NewHandler(c, s)
 	l := logger.NewLogger()
 	return httptest.NewServer(NewRouter(h, middleware.RequestResponseLogger(l)))

@@ -90,3 +90,9 @@ func getField(i *fileDBItem, field string) string {
 	f := reflect.Indirect(r).FieldByName(field)
 	return string(f.String())
 }
+
+func (s *FileDB) Ping() error {
+	_, error := os.Stat(s.filePath)
+
+	return error
+}

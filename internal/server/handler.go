@@ -142,3 +142,15 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 	jsonEncoder := json.NewEncoder(w)
 	jsonEncoder.Encode(response)
 }
+
+func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
+	err := h.storage.Ping()
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

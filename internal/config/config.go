@@ -11,10 +11,13 @@ type Address string
 
 type FilePath string
 
+type DBAddress string
+
 type Config struct {
-	ServerAddress   Address  `env:"SERVER_ADDRESS"`
-	BaseURL         Address  `env:"BASE_URL"`
-	FileStoragePath FilePath `env:"FILE_STORAGE_PATH"  envDefault:"/tmp/short-url-db.json"`
+	ServerAddress   Address   `env:"SERVER_ADDRESS"`
+	BaseURL         Address   `env:"BASE_URL"`
+	FileStoragePath FilePath  `env:"FILE_STORAGE_PATH"  envDefault:"/tmp/short-url-db.json"`
+	DatabaseDSN     DBAddress `env:"DATABASE_DSN"`
 }
 
 func (a *Address) Set(flagValue string) error {
@@ -51,11 +54,25 @@ func (s *FilePath) Type() string {
 	return "string"
 }
 
+func (d *DBAddress) Set(flagValue string) error {
+	*d = DBAddress(string(flagValue))
+	return nil
+}
+
+func (d *DBAddress) String() string {
+	return string(*d)
+}
+
+func (d *DBAddress) Type() string {
+	return "string"
+}
+
 func NewConfig() *Config {
 	config := Config{
 		ServerAddress:   "localhost:8080",
 		BaseURL:         "http://localhost:8080",
 		FileStoragePath: "",
+		DatabaseDSN:     "",
 	}
 
 	parseFlags(&config)
@@ -68,5 +85,6 @@ func parseFlags(c *Config) {
 	flag.VarP(&c.ServerAddress, "address", "a", "address of shortener service server")
 	flag.VarP(&c.BaseURL, "basepath", "b", "address of short link basepath")
 	flag.VarP(&c.FileStoragePath, "file_storage_path", "f", "path to file storage of URLs")
+	flag.VarP(&c.DatabaseDSN, "database_dsn", "d", "db connection string")
 	flag.Parse()
 }

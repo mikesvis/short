@@ -17,6 +17,7 @@ func TestNew(t *testing.T) {
 				ServerAddress:   "localhost:8080",
 				BaseURL:         "http://localhost:8080",
 				FileStoragePath: "",
+				DatabaseDSN:     "",
 			},
 		},
 	}

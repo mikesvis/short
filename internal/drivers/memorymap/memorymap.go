@@ -42,3 +42,7 @@ func (s *MemoryMap) GetByShort(shortURL string) (domain.URL, error) {
 
 	return domain.URL{}, nil
 }
+
+func (s *MemoryMap) Ping() error {
+	return nil
+}

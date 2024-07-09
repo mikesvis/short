@@ -14,6 +14,7 @@ func NewRouter(h *Handler, middlewares ...func(http.Handler) http.Handler) *chi.
 		r.Post("/shorten", h.CreateShortURLJSON)
 	})
 	r.Route("/", func(r chi.Router) {
+		r.Get("/ping", h.Ping)
 		r.Get("/{shortKey}", h.GetFullURL)
 		r.Post("/", h.CreateShortURLText)
 		r.Get("/", h.Fail)
