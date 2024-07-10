@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -25,7 +26,7 @@ func testConfig() *config.Config {
 func TestGetFullURL(t *testing.T) {
 	c := testConfig()
 	s := memorymap.NewMemoryMap()
-	s.Store(domain.URL{
+	s.Store(context.Background(), domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
 		Short: "short",
 	})
@@ -99,7 +100,7 @@ func TestGetFullURL(t *testing.T) {
 func TestCreateShortURLText(t *testing.T) {
 	c := testConfig()
 	s := memorymap.NewMemoryMap()
-	s.Store(domain.URL{
+	s.Store(context.Background(), domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
 		Short: "short",
 	})
@@ -266,7 +267,7 @@ func TestFail(t *testing.T) {
 func TestCreateShortURLJSON(t *testing.T) {
 	c := testConfig()
 	s := memorymap.NewMemoryMap()
-	s.Store(domain.URL{
+	s.Store(context.Background(), domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
 		Short: "short",
 	})

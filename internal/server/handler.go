@@ -29,8 +29,9 @@ func NewHandler(config *config.Config, storage storage.Storage) *Handler {
 // Получение короткого URL из запроса
 // Поиск в условной "базе" полного URL по сокращенному
 func (h *Handler) GetFullURL(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	shortKey := strings.TrimLeft(r.RequestURI, "/")
-	item, err := h.storage.GetByShort(shortKey)
+	item, err := h.storage.GetByShort(ctx, shortKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
@@ -53,6 +54,7 @@ func (h *Handler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 // Проверка на валидность URL
 // Запись сокращенного Url в условную "базу" если нет такого ключа
 func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -70,7 +72,7 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 	URL := urlformat.SanitizeURL(string(body))
 	status := http.StatusOK
 
-	item, err := h.storage.GetByFull(URL)
+	item, err := h.storage.GetByFull(ctx, URL)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
@@ -82,7 +84,7 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 			Full:  URL,
 			Short: keygen.GetRandkey(keygen.KeyLength),
 		}
-		h.storage.Store(item)
+		h.storage.Store(ctx, item)
 		status = http.StatusCreated
 	}
 
@@ -103,6 +105,7 @@ func (h *Handler) Fail(w http.ResponseWriter, r *http.Request) {
 // Проверка на валидность URL
 // Запись сокращенного URL в условную "базу" если нет такого ключа
 func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	var request api.Request
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -120,7 +123,7 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 	URL = urlformat.SanitizeURL(URL)
 	status := http.StatusOK
 
-	item, err := h.storage.GetByFull(URL)
+	item, err := h.storage.GetByFull(ctx, URL)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
@@ -132,7 +135,7 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 			Full:  URL,
 			Short: keygen.GetRandkey(keygen.KeyLength),
 		}
-		h.storage.Store(item)
+		h.storage.Store(ctx, item)
 		status = http.StatusCreated
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -144,7 +147,8 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
-	err := h.storage.Ping()
+	ctx := r.Context()
+	err := h.storage.Ping(ctx)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -2,6 +2,7 @@ package filedb
 
 import (
 	"bufio"
+	"context"
 	"math/rand"
 	"os"
 	"testing"
@@ -38,6 +39,8 @@ func TestNewStorageURL(t *testing.T) {
 }
 
 func Test_storageURL_Store(t *testing.T) {
+	ctx := context.Background()
+
 	tests := []struct {
 		name string
 		args domain.URL
@@ -70,7 +73,7 @@ func Test_storageURL_Store(t *testing.T) {
 			}
 
 			// Storing
-			s.Store(tt.args)
+			s.Store(ctx, tt.args)
 
 			// Reading temp file
 			file, err := os.OpenFile(s.filePath, os.O_RDONLY, 0666)
@@ -100,6 +103,8 @@ func createAndSeedTestStorage(t *testing.T) string {
 }
 
 func Test_storageURL_GetByFull(t *testing.T) {
+	ctx := context.Background()
+
 	tests := []struct {
 		name string
 		args string
@@ -124,7 +129,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 			s := &FileDB{
 				filePath: tmpFile,
 			}
-			item, _ := s.GetByFull(tt.args)
+			item, _ := s.GetByFull(ctx, tt.args)
 			assert.IsType(t, tt.want, item)
 			assert.EqualValues(t, tt.want, item)
 			os.Remove(tmpFile)
@@ -133,6 +138,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 }
 
 func Test_storageURL_GetByShort(t *testing.T) {
+	ctx := context.Background()
 
 	tests := []struct {
 		name string
@@ -158,7 +164,7 @@ func Test_storageURL_GetByShort(t *testing.T) {
 			s := &FileDB{
 				filePath: tmpFile,
 			}
-			item, _ := s.GetByShort(tt.args)
+			item, _ := s.GetByShort(ctx, tt.args)
 			assert.IsType(t, tt.want, item)
 			assert.EqualValues(t, tt.want, item)
 			os.Remove(tmpFile)

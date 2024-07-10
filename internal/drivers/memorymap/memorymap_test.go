@@ -1,6 +1,7 @@
 package memorymap
 
 import (
+	"context"
 	"math/rand"
 	"testing"
 
@@ -35,6 +36,8 @@ func TestNewStorageURL(t *testing.T) {
 }
 
 func Test_storageURL_Store(t *testing.T) {
+	ctx := context.Background()
+
 	type fields struct {
 		items map[domain.ID]domain.URL
 	}
@@ -67,13 +70,15 @@ func Test_storageURL_Store(t *testing.T) {
 			s := &MemoryMap{
 				items: tt.fields.items,
 			}
-			s.Store(tt.args)
+			s.Store(ctx, tt.args)
 			assert.EqualValues(t, tt.want, s.items)
 		})
 	}
 }
 
 func Test_storageURL_GetByFull(t *testing.T) {
+	ctx := context.Background()
+
 	type fields struct {
 		items map[domain.ID]domain.URL
 	}
@@ -121,7 +126,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 			s := &MemoryMap{
 				items: tt.fields.items,
 			}
-			item, _ := s.GetByFull(tt.args)
+			item, _ := s.GetByFull(ctx, tt.args)
 			assert.IsType(t, tt.want, item)
 			assert.EqualValues(t, tt.want, item)
 		})
@@ -129,6 +134,8 @@ func Test_storageURL_GetByFull(t *testing.T) {
 }
 
 func Test_storageURL_GetByShort(t *testing.T) {
+	ctx := context.Background()
+
 	type fields struct {
 		items map[domain.ID]domain.URL
 	}
@@ -176,7 +183,7 @@ func Test_storageURL_GetByShort(t *testing.T) {
 			s := &MemoryMap{
 				items: tt.fields.items,
 			}
-			item, _ := s.GetByShort(tt.args)
+			item, _ := s.GetByShort(ctx, tt.args)
 			assert.IsType(t, tt.want, item)
 			assert.EqualValues(t, tt.want, item)
 		})

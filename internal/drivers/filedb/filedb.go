@@ -1,6 +1,7 @@
 package filedb
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -28,7 +29,7 @@ func NewFileDB(fileName string) *FileDB {
 	return s
 }
 
-func (s *FileDB) Store(u domain.URL) error {
+func (s *FileDB) Store(ctx context.Context, u domain.URL) error {
 	file, err := os.OpenFile(s.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return err
@@ -50,11 +51,11 @@ func (s *FileDB) Store(u domain.URL) error {
 	return nil
 }
 
-func (s *FileDB) GetByFull(fullURL string) (domain.URL, error) {
+func (s *FileDB) GetByFull(ctx context.Context, fullURL string) (domain.URL, error) {
 	return s.findInFile("OriginalURL", fullURL)
 }
 
-func (s *FileDB) GetByShort(shortURL string) (domain.URL, error) {
+func (s *FileDB) GetByShort(ctx context.Context, shortURL string) (domain.URL, error) {
 	return s.findInFile("ShortURL", shortURL)
 }
 
@@ -91,7 +92,7 @@ func getField(i *fileDBItem, field string) string {
 	return string(f.String())
 }
 
-func (s *FileDB) Ping() error {
+func (s *FileDB) Ping(ctx context.Context) error {
 	_, error := os.Stat(s.filePath)
 
 	return error

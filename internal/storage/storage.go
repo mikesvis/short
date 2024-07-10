@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -13,10 +14,10 @@ import (
 )
 
 type Storage interface {
-	Store(domain.URL) error
-	GetByFull(fullURL string) (domain.URL, error)
-	GetByShort(shortURL string) (domain.URL, error)
-	Ping() error
+	Store(context.Context, domain.URL) error
+	GetByFull(ctx context.Context, fullURL string) (domain.URL, error)
+	GetByShort(ctx context.Context, shortURL string) (domain.URL, error)
+	Ping(ctx context.Context) error
 }
 
 func NewStorage(c *config.Config) Storage {
