@@ -75,9 +75,9 @@ func TestShortRouter(t *testing.T) {
 			args: args{method: http.MethodPost, url: "/", body: strings.NewReader("http://yandex.ru")},
 			want: want{statusCode: http.StatusCreated, contentType: "text/plain"},
 		}, {
-			name: "Test POST / valid full url and get old short (200)",
+			name: "Test POST / valid full url and get old short (409)",
 			args: args{method: http.MethodPost, url: "/", body: strings.NewReader(startFull)},
-			want: want{statusCode: http.StatusOK, body: startShort, contentType: "text/plain"},
+			want: want{statusCode: http.StatusConflict, body: startShort, contentType: "text/plain"},
 		}, {
 			name: "Test POST / invalid url on post (400)",
 			args: args{method: http.MethodPost, url: "/", body: strings.NewReader(":/ya")},
@@ -91,13 +91,9 @@ func TestShortRouter(t *testing.T) {
 			args: args{method: http.MethodPost, url: "/api/shorten", body: strings.NewReader(`{"url":"https://google.com"}`)},
 			want: want{statusCode: http.StatusCreated, contentType: "application/json"},
 		}, {
-			name: "Test POST /api/shorten valid full url and get old short (200)",
-			args: args{
-				method: http.MethodPost,
-				url:    "/api/shorten",
-				body:   strings.NewReader(strings.Join([]string{`{"url":"`, startFull, `"}`}, "")),
-			},
-			want: want{statusCode: http.StatusOK, body: startShort, contentType: "application/json"},
+			name: "Test POST /api/shorten valid full url and get old short (409)",
+			args: args{method: http.MethodPost, url: "/api/shorten", body: strings.NewReader(`{"url":"` + startFull + `"}`)},
+			want: want{statusCode: http.StatusConflict, body: startShort, contentType: "application/json"},
 		}, {
 			name: "Test POST /api/shorten invalid url on post (400)",
 			args: args{method: http.MethodPost, url: "/api/shorten", body: strings.NewReader(`{"url":":/ya"}`)},

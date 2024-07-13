@@ -3,9 +3,13 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	ge "errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/errors"
 )
 
 type postgresDBItem struct {
@@ -46,16 +50,17 @@ func bootstrapDB(db *sql.DB) error {
 	return tx.Commit()
 }
 
-func (s *Postgres) Store(ctx context.Context, u domain.URL) error {
+func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
+	emptyResult := domain.URL{}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return emptyResult, err
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.PrepareContext(ctx, `INSERT INTO short (id, full_url, short_key) VALUES ($1, $2, $3)`)
+	stmt, err := tx.PrepareContext(ctx, `INSERT INTO short (id, full_url, short_key) VALUES ($1, $2, $3) ON CONFLICT (short_key) DO NOTHING`)
 	if err != nil {
-		return err
+		return emptyResult, err
 	}
 	defer stmt.Close()
 
@@ -67,10 +72,25 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) error {
 
 	_, err = stmt.ExecContext(ctx, item.ID, item.FullURL, item.ShortKey)
 	if err != nil {
-		return err
+		var pgErr *pgconn.PgError
+		if ge.As(err, &pgErr) && pgErr.Code != pgerrcode.UniqueViolation {
+			// Ошибка непонятная
+			return emptyResult, err
+		}
 	}
 
-	return tx.Commit()
+	// Ошибок не было, значит успешно сохранили
+	if err == nil {
+		return u, tx.Commit()
+	}
+
+	// Была ошибка пересечения по ключу, забираем старый
+	old, err := s.GetByFull(ctx, u.Full)
+	if err != nil {
+		return emptyResult, err
+	}
+
+	return old, errors.ErrConflict
 }
 
 func (s *Postgres) GetByFull(ctx context.Context, fullURL string) (domain.URL, error) {

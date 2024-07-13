@@ -2,7 +2,7 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
+	ge "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +11,7 @@ import (
 	"github.com/mikesvis/short/internal/api"
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/errors"
 	"github.com/mikesvis/short/internal/keygen"
 	"github.com/mikesvis/short/internal/storage"
 	"github.com/mikesvis/short/pkg/urlformat"
@@ -70,21 +71,20 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 	}
 
 	URL := urlformat.SanitizeURL(string(body))
-	status := http.StatusOK
+	item := domain.URL{
+		Full:  URL,
+		Short: keygen.GetRandkey(keygen.KeyLength),
+	}
+	status := http.StatusConflict
 
-	item, err := h.storage.GetByFull(ctx, URL)
-	if err != nil {
+	item, err = h.storage.Store(ctx, item)
+	if err != nil && !ge.Is(err, errors.ErrConflict) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	if (item == domain.URL{}) {
-		item = domain.URL{
-			Full:  URL,
-			Short: keygen.GetRandkey(keygen.KeyLength),
-		}
-		h.storage.Store(ctx, item)
+	if err == nil {
 		status = http.StatusCreated
 	}
 
@@ -95,7 +95,7 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 
 // Обработка всего остального
 func (h *Handler) Fail(w http.ResponseWriter, r *http.Request) {
-	err := errors.New("bad protocol")
+	err := ge.New("bad protocol")
 	http.Error(w, err.Error(), http.StatusBadRequest)
 }
 
@@ -121,7 +121,7 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	URL = urlformat.SanitizeURL(URL)
-	status := http.StatusOK
+	status := http.StatusConflict
 
 	item, err := h.storage.GetByFull(ctx, URL)
 	if err != nil {

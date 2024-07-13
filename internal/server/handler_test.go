@@ -123,10 +123,10 @@ func TestCreateShortURLText(t *testing.T) {
 		request request
 	}{
 		{
-			name: "Get short url from full (200)",
+			name: "Get old short url from full (409)",
 			want: want{
 				contentType: "text/plain",
-				statusCode:  http.StatusOK,
+				statusCode:  http.StatusConflict,
 				isNew:       false,
 				wantError:   false,
 				body:        string(c.BaseURL) + "/short",
@@ -137,7 +137,7 @@ func TestCreateShortURLText(t *testing.T) {
 				body:   "http://www.yandex.ru/verylongpath",
 			},
 		}, {
-			name: "Create short url from full (201)",
+			name: "Create new short url from full (201)",
 			want: want{
 				contentType: "text/plain",
 				statusCode:  http.StatusCreated,
@@ -289,10 +289,10 @@ func TestCreateShortURLJSON(t *testing.T) {
 		request request
 	}{
 		{
-			name: "Get short url from full (200)",
+			name: "Get old short url from full (409)",
 			want: want{
 				contentType: "application/json",
-				statusCode:  http.StatusOK,
+				statusCode:  http.StatusConflict,
 				isNew:       false,
 				wantError:   false,
 				body:        strings.Join([]string{`{"result":"`, string(c.BaseURL), `/short"}`}, ""),
@@ -303,7 +303,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 				body:   `{"url":"http://www.yandex.ru/verylongpath"}`,
 			},
 		}, {
-			name: "Create short url from full (201)",
+			name: "Create new short url from full (201)",
 			want: want{
 				contentType: "application/json",
 				statusCode:  http.StatusCreated,

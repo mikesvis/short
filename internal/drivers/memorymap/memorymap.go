@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/errors"
 )
 
 type MemoryMap struct {
@@ -16,9 +17,14 @@ func NewMemoryMap() *MemoryMap {
 	return &MemoryMap{items: items}
 }
 
-func (s *MemoryMap) Store(ctx context.Context, u domain.URL) error {
+func (s *MemoryMap) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
+	for _, v := range s.items {
+		if v.Full == u.Full {
+			return v, errors.ErrConflict
+		}
+	}
 	s.items[domain.ID(uuid.NewString())] = u
-	return nil
+	return u, nil
 }
 
 func (s *MemoryMap) GetByFull(ctx context.Context, fullURL string) (domain.URL, error) {

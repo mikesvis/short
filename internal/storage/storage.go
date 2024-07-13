@@ -14,7 +14,7 @@ import (
 )
 
 type Storage interface {
-	Store(ctx context.Context, URL domain.URL) error
+	Store(ctx context.Context, URL domain.URL) (domain.URL, error)
 	StoreBatch(ctx context.Context, pack map[string]domain.URL) (map[string]domain.URL, error)
 	GetByFull(ctx context.Context, fullURL string) (domain.URL, error)
 	GetByShort(ctx context.Context, shortURL string) (domain.URL, error)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/errors"
 )
 
 type fileDBItem struct {
@@ -29,10 +30,20 @@ func NewFileDB(fileName string) *FileDB {
 	return s
 }
 
-func (s *FileDB) Store(ctx context.Context, u domain.URL) error {
+func (s *FileDB) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
+	emptyResult := domain.URL{}
+	old, err := s.GetByFull(ctx, u.Full)
+	if err != nil {
+		return emptyResult, nil
+	}
+
+	if old != emptyResult {
+		return old, errors.ErrConflict
+	}
+
 	file, err := os.OpenFile(s.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		return err
+		return emptyResult, err
 	}
 	defer file.Close()
 
@@ -45,10 +56,10 @@ func (s *FileDB) Store(ctx context.Context, u domain.URL) error {
 	}
 
 	if err := encoder.Encode(&item); err != nil {
-		return err
+		return emptyResult, err
 	}
 
-	return nil
+	return u, nil
 }
 
 func (s *FileDB) GetByFull(ctx context.Context, fullURL string) (domain.URL, error) {
