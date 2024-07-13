@@ -86,8 +86,7 @@ func (s *Postgres) Ping(ctx context.Context) error {
 }
 
 func (s *Postgres) findByColumn(ctx context.Context, column, needle string) (domain.URL, error) {
-	// вот это какой-то бред! как я не пытался передать в формирование запроса колонку, не смог
-	// крик души!!!
+	// вот это какой-то бред! как я не пытался передать в формирование запроса prepare колонку, не смог
 	var countQuery, selectQuery string
 	switch column {
 	case "full_url":
@@ -133,4 +132,69 @@ func (s *Postgres) findByColumn(ctx context.Context, column, needle string) (dom
 	}
 
 	return domain.URL{Full: p.FullURL, Short: p.ShortKey}, nil
+}
+
+func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[string]domain.URL, error) {
+	// подход в рамках одной транзации: берем 1 элемент, смотрим есть ли он в базе,
+	// если есть, то ничего не делаем, просто замеяем его урл на старый
+	// если нет - пишем в базу
+	// мое мнение: это убогое решение, поскольку будет порождено столько транзакций/select'ов/insert'ов
+	// сколько элементов пришло в метод, реплике может стать очень плохо в перспективе кол-ва эл-тов на входе
+	// надо делать завдержку реплики
+	for k, v := range us {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		defer tx.Rollback()
+
+		selectQuery := `SELECT id, full_url, short_key FROM short WHERE "full_url" = $1`
+		stmt, err := tx.PrepareContext(ctx, selectQuery)
+		if err != nil {
+			return nil, err
+		}
+		defer stmt.Close()
+
+		row := stmt.QueryRowContext(ctx, v.Full)
+
+		var p postgresDBItem
+		err = row.Scan(&p.ID, &p.FullURL, &p.ShortKey)
+		if err != sql.ErrNoRows && err != nil {
+			return nil, err
+		}
+
+		// такой элемент уже есть, не добавляем, узнаем его старый урл
+		if err == nil {
+			us[k] = domain.URL{
+				Full:  v.Full,
+				Short: p.ShortKey,
+			}
+			continue
+		}
+
+		// этот элемент новый, будем его сохранять
+		stmt, err = tx.PrepareContext(ctx, `INSERT INTO short (id, full_url, short_key) VALUES ($1, $2, $3)`)
+		if err != nil {
+			return nil, err
+		}
+		defer stmt.Close()
+
+		item := postgresDBItem{
+			ID:       uuid.NewString(),
+			FullURL:  v.Full,
+			ShortKey: v.Short,
+		}
+
+		_, err = stmt.ExecContext(ctx, item.ID, item.FullURL, item.ShortKey)
+		if err != nil {
+			return nil, err
+		}
+
+		err = tx.Commit()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return us, nil
 }

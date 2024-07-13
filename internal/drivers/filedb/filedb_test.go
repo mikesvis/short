@@ -171,3 +171,73 @@ func Test_storageURL_GetByShort(t *testing.T) {
 		})
 	}
 }
+
+func TestFileDB_StoreBatch(t *testing.T) {
+	ctx := context.Background()
+
+	type want struct {
+		stored        map[string]domain.URL
+		storageString string
+	}
+
+	tests := []struct {
+		name string
+		args map[string]domain.URL
+		want want
+	}{
+		{
+			name: "Batch store items",
+			args: map[string]domain.URL{
+				"1": {
+					Full:  "http://www.yandex.ru/verylongpath1",
+					Short: "short1",
+				},
+			},
+			want: want{
+				stored: map[string]domain.URL{
+					"1": {
+						Full:  "http://www.yandex.ru/verylongpath1",
+						Short: "short1",
+					},
+				},
+				storageString: `{
+					"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72",
+					"short_url": "short1",
+					"original_url":"http://www.yandex.ru/verylongpath1"
+				}`,
+			},
+		},
+	}
+	uuid.SetRand(rand.New(rand.NewSource(1)))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Creating temp file
+			tmpFile, err := os.CreateTemp(os.TempDir(), "dbtest*.json")
+			require.Nil(t, err)
+			tmpFile.Close()
+
+			// Using temp file in storage
+			s := &FileDB{
+				filePath: tmpFile.Name(),
+			}
+
+			// Storing
+			stored, err := s.StoreBatch(ctx, tt.args)
+			require.NoError(t, err)
+
+			// Reading temp file
+			file, err := os.OpenFile(s.filePath, os.O_RDONLY, 0666)
+			require.Nil(t, err)
+			defer file.Close()
+			scanner := bufio.NewScanner(file)
+			scanner.Scan()
+			fileString := scanner.Text()
+
+			assert.EqualValues(t, tt.want.stored, stored)
+			assert.JSONEq(t, tt.want.storageString, fileString)
+
+			// Removing temp file
+			os.Remove(tmpFile.Name())
+		})
+	}
+}

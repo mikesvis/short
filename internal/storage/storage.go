@@ -14,7 +14,8 @@ import (
 )
 
 type Storage interface {
-	Store(context.Context, domain.URL) error
+	Store(ctx context.Context, URL domain.URL) error
+	StoreBatch(ctx context.Context, pack map[string]domain.URL) (map[string]domain.URL, error)
 	GetByFull(ctx context.Context, fullURL string) (domain.URL, error)
 	GetByShort(ctx context.Context, shortURL string) (domain.URL, error)
 	Ping(ctx context.Context) error
@@ -27,7 +28,7 @@ func NewStorage(c *config.Config) Storage {
 			panic(err)
 		}
 		// defer db.Close() - вот с закрытием немного не ясно, поскольку тут закрытию точно не место
-		// а делать для каждого типа storage Close - странно, т.к. не все типы требуют закрытия. Пожоже на протекание абстракции.
+		// а делать для каждого типа storage Close это странно, т.к. не все типы требуют закрытия.
 		// Кто-то в инете говорит что закрывать соединение не надо (гуглил на stackoverflow), мол
 		// при завершении приложения все коннекты и так закрываются и переживать не надо (в отличии от rows.close()).
 		// Если соединения закрывать все-таки нужно, то я бы сделал некую структуру с списком соединений.

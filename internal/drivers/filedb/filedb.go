@@ -62,7 +62,7 @@ func (s *FileDB) GetByShort(ctx context.Context, shortURL string) (domain.URL, e
 func (s *FileDB) findInFile(field, needle string) (domain.URL, error) {
 	file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
-		return domain.URL{}, nil
+		return domain.URL{}, err
 	}
 	defer file.Close()
 
@@ -96,4 +96,77 @@ func (s *FileDB) Ping(ctx context.Context) error {
 	_, error := os.Stat(s.filePath)
 
 	return error
+}
+
+func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[string]domain.URL, error) {
+	// в мапе хранится полный урл = ключ корреляции
+	wantToStore := make(map[string]string, len(us))
+
+	for k, v := range us {
+		wantToStore[string(v.Full)] = k
+	}
+
+	// для начала найдем совпадения по урлу, которые были сохранены ранее
+	file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	for {
+
+		var i fileDBItem
+		if err := decoder.Decode(&i); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+
+		k, exists := wantToStore[i.OriginalURL]
+		if exists {
+			// урл был сохранен ранее: удаляем из списка на сохранение и
+			// восстанавливаем его старый short вместо нового
+			delete(wantToStore, i.OriginalURL)
+			us[k] = domain.URL{
+				Full:  i.OriginalURL,
+				Short: i.ShortURL,
+			}
+		}
+
+		// список на сохранение пустой, не смысла искать далее (все элементы уже есть в хранилке)
+		if len(wantToStore) == 0 {
+			break
+		}
+	}
+
+	// все элементы на сохранение уже есть, нечего сохранять
+	if len(wantToStore) == 0 {
+		return us, nil
+	}
+
+	// будем сохранять только те елементы, которых нет
+	file, err = os.OpenFile(s.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+
+	// пишем в файл только новые
+	for _, v := range wantToStore {
+
+		item := fileDBItem{
+			UUID:        uuid.NewString(),
+			ShortURL:    us[v].Short,
+			OriginalURL: us[v].Full,
+		}
+
+		if err := encoder.Encode(&item); err != nil {
+			return nil, err
+		}
+	}
+
+	return us, nil
 }

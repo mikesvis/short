@@ -189,3 +189,47 @@ func Test_storageURL_GetByShort(t *testing.T) {
 		})
 	}
 }
+
+func TestMemoryMap_StoreBatch(t *testing.T) {
+	ctx := context.Background()
+
+	type fields struct {
+		items map[domain.ID]domain.URL
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   map[string]domain.URL
+		want   map[string]domain.URL
+	}{
+		{
+			name: "Batch store items",
+			fields: fields{
+				items: map[domain.ID]domain.URL{},
+			},
+			args: map[string]domain.URL{
+				"1": {
+					Full:  "http://www.yandex.ru/verylongpath1",
+					Short: "short1",
+				},
+			},
+			want: map[string]domain.URL{
+				"1": {
+					Full:  "http://www.yandex.ru/verylongpath1",
+					Short: "short1",
+				},
+			},
+		},
+	}
+	uuid.SetRand(rand.New(rand.NewSource(1)))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &MemoryMap{
+				items: tt.fields.items,
+			}
+			stored, err := s.StoreBatch(ctx, tt.args)
+			assert.NoError(t, err)
+			assert.EqualValues(t, tt.want, stored)
+		})
+	}
+}
