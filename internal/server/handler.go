@@ -1,8 +1,9 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
-	ge "errors"
+	_goerrors "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,7 +31,9 @@ func NewHandler(config *config.Config, storage storage.Storage) *Handler {
 // Получение короткого URL из запроса
 // Поиск в условной "базе" полного URL по сокращенному
 func (h *Handler) GetFullURL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	shortKey := strings.TrimLeft(r.RequestURI, "/")
 	item, err := h.storage.GetByShort(ctx, shortKey)
 	if err != nil {
@@ -55,7 +58,9 @@ func (h *Handler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 // Проверка на валидность URL
 // Запись сокращенного Url в условную "базу" если нет такого ключа
 func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -78,7 +83,7 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 	status := http.StatusConflict
 
 	item, err = h.storage.Store(ctx, item)
-	if err != nil && !ge.Is(err, errors.ErrConflict) {
+	if err != nil && !_goerrors.Is(err, errors.ErrConflict) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
@@ -95,7 +100,7 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 
 // Обработка всего остального
 func (h *Handler) Fail(w http.ResponseWriter, r *http.Request) {
-	err := ge.New("bad protocol")
+	err := _goerrors.New("bad protocol")
 	http.Error(w, err.Error(), http.StatusBadRequest)
 }
 
@@ -105,7 +110,9 @@ func (h *Handler) Fail(w http.ResponseWriter, r *http.Request) {
 // Проверка на валидность URL
 // Запись сокращенного URL в условную "базу" если нет такого ключа
 func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	var request api.Request
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -148,8 +155,16 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 
 // Пинг хранилки
 func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	err := h.storage.Ping(ctx)
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	if _, ok := h.storage.(storage.StoragePinger); !ok {
+		w.WriteHeader(http.StatusNotFound)
+
+		return
+	}
+
+	err := h.storage.(storage.StoragePinger).Ping(ctx)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -167,14 +182,16 @@ func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
 // Проверка на валидность URL
 // Запись сокращенного URL в условную "базу" если нет такого ключа
 func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	var request []api.BatchRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// генерим потенциальные domain.URL на сохранение с свежими Short
+	// генерим потенциальные domain.URL на сохранение с новым Short
 	pack := make(map[string]domain.URL)
 	for _, v := range request {
 		pack[string(v.CorrelationID)] = domain.URL{
@@ -185,9 +202,6 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 
 	// domain.URL.Short в процессе сохранения поменяем на старый если такой domain.URL.Full уже есть
 	// цель: сделать получение/вычисление/сохранение в одну транзакцию
-	// упарываться ответить кодом 201 если всех элементов не существовало ранее - не стал
-	// TODO - не учитывается кейс с двумя одинаковыми correlation_id (не описаны требования!) :)
-	// TODO поиск в хранилке надо сделать через кэш, мотать файл/базу каждый раз не комильфо
 	stored, err := h.storage.StoreBatch(ctx, pack)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

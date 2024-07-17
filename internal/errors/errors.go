@@ -1,6 +1,6 @@
 package errors
 
-import ge "errors"
+import _goerrors "errors"
 
 // Чуть не сошел сума с циклической зависимостью :(
-var ErrConflict = ge.New("conflict error")
+var ErrConflict = _goerrors.New("conflict error")

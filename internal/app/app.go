@@ -44,6 +44,10 @@ func New() *App {
 
 func (a *App) Run() {
 	a.logger.Infow("Config initialized", "config", a.config)
+	// хоспади какие костыли ради разных хранилищ
+	if _, isCloser := a.storage.(storage.StorageCloser); isCloser {
+		defer a.storage.(storage.StorageCloser).Close()
+	}
 	if err := http.ListenAndServe(string(a.config.ServerAddress), a.router); err != nil {
 		a.logger.Fatalw(err.Error(), "event", "start server")
 	}

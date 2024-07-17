@@ -3,7 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	ge "errors"
+	_goerrors "errors"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
@@ -73,7 +73,7 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 	_, err = stmt.ExecContext(ctx, item.ID, item.FullURL, item.ShortKey)
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if ge.As(err, &pgErr) && pgErr.Code != pgerrcode.UniqueViolation {
+		if _goerrors.As(err, &pgErr) && pgErr.Code != pgerrcode.UniqueViolation {
 			// Ошибка непонятная
 			return emptyResult, err
 		}
@@ -94,36 +94,18 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 }
 
 func (s *Postgres) GetByFull(ctx context.Context, fullURL string) (domain.URL, error) {
-	return s.findByColumn(ctx, "full_url", fullURL)
-}
-
-func (s *Postgres) GetByShort(ctx context.Context, shortURL string) (domain.URL, error) {
-	return s.findByColumn(ctx, "short_key", shortURL)
-}
-
-func (s *Postgres) Ping(ctx context.Context) error {
-	return s.db.PingContext(ctx)
-}
-
-func (s *Postgres) findByColumn(ctx context.Context, column, needle string) (domain.URL, error) {
-	// вот это какой-то бред! как я не пытался передать в формирование запроса prepare колонку, не смог
-	var countQuery, selectQuery string
-	switch column {
-	case "full_url":
-		countQuery = `SELECT COUNT(1) FROM short WHERE "full_url" = $1`
-		selectQuery = `SELECT id, full_url, short_key FROM short WHERE "full_url" = $1`
-	case "short_key":
-		countQuery = `SELECT COUNT(1) FROM short WHERE "short_key" = $1`
-		selectQuery = `SELECT id, full_url, short_key FROM short WHERE "short_key" = $1`
-	}
-
-	stmt, err := s.db.PrepareContext(ctx, countQuery)
+	// тут можно дискутировать зачем 2 запроса, но сам по себе select count всегда быстрее select columns
+	// если есть возможность сэкономить - почему бы и нет? второй вариант - сделать все через 1 селект, но тогда
+	// придется проверять на пустой ответ, а он рализован в виде ошибки, мне так не нравится.
+	// так что сначала ищем count(), если не нашли - уходим, а если нашли - детализируем/уточняем
+	// ищем по полному урлу
+	stmt, err := s.db.PrepareContext(ctx, `SELECT COUNT(1) FROM short WHERE "full_url" = $1`)
 	if err != nil {
 		return domain.URL{}, err
 	}
 	defer stmt.Close()
 
-	row := stmt.QueryRowContext(ctx, needle)
+	row := stmt.QueryRowContext(ctx, fullURL)
 
 	var rowsNum int
 
@@ -132,17 +114,19 @@ func (s *Postgres) findByColumn(ctx context.Context, column, needle string) (dom
 		return domain.URL{}, err
 	}
 
+	// совпадений нет, возвращаем пустой объект
 	if rowsNum == 0 {
 		return domain.URL{}, nil
 	}
 
-	stmt, err = s.db.PrepareContext(ctx, selectQuery)
+	// совпадения есть, получаем объект
+	stmt, err = s.db.PrepareContext(ctx, `SELECT id, full_url, short_key FROM short WHERE "full_url" = $1`)
 	if err != nil {
 		return domain.URL{}, err
 	}
 	defer stmt.Close()
 
-	row = stmt.QueryRowContext(ctx, needle)
+	row = stmt.QueryRowContext(ctx, fullURL)
 
 	var p postgresDBItem
 
@@ -152,6 +136,52 @@ func (s *Postgres) findByColumn(ctx context.Context, column, needle string) (dom
 	}
 
 	return domain.URL{Full: p.FullURL, Short: p.ShortKey}, nil
+}
+
+func (s *Postgres) GetByShort(ctx context.Context, shortURL string) (domain.URL, error) {
+	// мне б оторвали голову за такое дублирование кода...
+	// ищем по короткому урлу
+	stmt, err := s.db.PrepareContext(ctx, `SELECT COUNT(1) FROM short WHERE "short_key" = $1`)
+	if err != nil {
+		return domain.URL{}, err
+	}
+	defer stmt.Close()
+
+	row := stmt.QueryRowContext(ctx, shortURL)
+
+	var rowsNum int
+
+	err = row.Scan(&rowsNum)
+	if err != nil {
+		return domain.URL{}, err
+	}
+
+	// совпадений нет, возвращаем пустой объект
+	if rowsNum == 0 {
+		return domain.URL{}, nil
+	}
+
+	// совпадения есть, получаем объект
+	stmt, err = s.db.PrepareContext(ctx, `SELECT id, full_url, short_key FROM short WHERE "short_key" = $1`)
+	if err != nil {
+		return domain.URL{}, err
+	}
+	defer stmt.Close()
+
+	row = stmt.QueryRowContext(ctx, shortURL)
+
+	var p postgresDBItem
+
+	err = row.Scan(&p.ID, &p.FullURL, &p.ShortKey)
+	if err != nil {
+		return domain.URL{}, err
+	}
+
+	return domain.URL{Full: p.FullURL, Short: p.ShortKey}, nil
+}
+
+func (s *Postgres) Ping(ctx context.Context) error {
+	return s.db.PingContext(ctx)
 }
 
 func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[string]domain.URL, error) {
@@ -217,4 +247,8 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	}
 
 	return us, nil
+}
+
+func (s *Postgres) Close() error {
+	return s.db.Close()
 }

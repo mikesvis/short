@@ -1,4 +1,4 @@
-package memorymap
+package inmemory
 
 import (
 	"context"
@@ -8,16 +8,16 @@ import (
 	"github.com/mikesvis/short/internal/errors"
 )
 
-type MemoryMap struct {
+type InMemory struct {
 	items map[domain.ID]domain.URL
 }
 
-func NewMemoryMap() *MemoryMap {
+func NewInMemory() *InMemory {
 	items := make(map[domain.ID]domain.URL)
-	return &MemoryMap{items: items}
+	return &InMemory{items: items}
 }
 
-func (s *MemoryMap) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
+func (s *InMemory) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
 	for _, v := range s.items {
 		if v.Full == u.Full {
 			return v, errors.ErrConflict
@@ -27,7 +27,7 @@ func (s *MemoryMap) Store(ctx context.Context, u domain.URL) (domain.URL, error)
 	return u, nil
 }
 
-func (s *MemoryMap) GetByFull(ctx context.Context, fullURL string) (domain.URL, error) {
+func (s *InMemory) GetByFull(ctx context.Context, fullURL string) (domain.URL, error) {
 	for _, v := range s.items {
 		if string(v.Full) != fullURL {
 			continue
@@ -39,7 +39,7 @@ func (s *MemoryMap) GetByFull(ctx context.Context, fullURL string) (domain.URL, 
 	return domain.URL{}, nil
 }
 
-func (s *MemoryMap) GetByShort(ctx context.Context, shortURL string) (domain.URL, error) {
+func (s *InMemory) GetByShort(ctx context.Context, shortURL string) (domain.URL, error) {
 	for _, v := range s.items {
 		if string(v.Short) != shortURL {
 			continue
@@ -51,11 +51,7 @@ func (s *MemoryMap) GetByShort(ctx context.Context, shortURL string) (domain.URL
 	return domain.URL{}, nil
 }
 
-func (s *MemoryMap) Ping(ctx context.Context) error {
-	return nil
-}
-
-func (s *MemoryMap) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[string]domain.URL, error) {
+func (s *InMemory) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[string]domain.URL, error) {
 	// в мапе хранится полный урл = ключ корреляции
 	wantToStore := make(map[string]string, len(us))
 

@@ -10,7 +10,7 @@ import (
 
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
-	"github.com/mikesvis/short/internal/drivers/memorymap"
+	"github.com/mikesvis/short/internal/drivers/inmemory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +25,7 @@ func testConfig() *config.Config {
 
 func TestGetFullURL(t *testing.T) {
 	c := testConfig()
-	s := memorymap.NewMemoryMap()
+	s := inmemory.NewInMemory()
 	s.Store(context.Background(), domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
 		Short: "short",
@@ -99,7 +99,7 @@ func TestGetFullURL(t *testing.T) {
 
 func TestCreateShortURLText(t *testing.T) {
 	c := testConfig()
-	s := memorymap.NewMemoryMap()
+	s := inmemory.NewInMemory()
 	s.Store(context.Background(), domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
 		Short: "short",
@@ -217,7 +217,7 @@ func TestCreateShortURLText(t *testing.T) {
 func TestFail(t *testing.T) {
 	c := testConfig()
 
-	s := memorymap.NewMemoryMap()
+	s := inmemory.NewInMemory()
 	handler := NewHandler(c, s)
 
 	type request struct {
@@ -266,7 +266,7 @@ func TestFail(t *testing.T) {
 
 func TestCreateShortURLJSON(t *testing.T) {
 	c := testConfig()
-	s := memorymap.NewMemoryMap()
+	s := inmemory.NewInMemory()
 	s.Store(context.Background(), domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
 		Short: "short",
@@ -382,7 +382,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 
 func TestHandler_CreateShortURLBatch(t *testing.T) {
 	c := testConfig()
-	s := memorymap.NewMemoryMap()
+	s := inmemory.NewInMemory()
 	s.StoreBatch(context.Background(), map[string]domain.URL{
 		"1": {
 			Full:  "http://www.yandex.ru/verylongpath",
