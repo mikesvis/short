@@ -54,7 +54,7 @@ func NewConfig() *Config {
 func parseFlags(c *Config) {
 	flag.VarP(&c.ServerAddress, "address", "a", "address of shortener service server")
 	flag.VarP(&c.BaseURL, "basepath", "b", "address of short link basepath")
-	c.FileStoragePath = *flag.StringP("file_storage_path", "f", "", "path to file storage of URLs")
-	c.DatabaseDSN = *flag.StringP("database_dsn", "d", "", "db connection string")
+	flag.StringVarP(&c.FileStoragePath, "file_storage_path", "f", "", "path to file storage of URLs")
+	flag.StringVarP(&c.DatabaseDSN, "database_dsn", "d", "", "db connection string")
 	flag.Parse()
 }
