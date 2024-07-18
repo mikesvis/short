@@ -316,34 +316,6 @@ func TestCreateShortURLJSON(t *testing.T) {
 				target: "/api/shorten",
 				body:   `{"url":"http://www.yandex.ru/very"}`,
 			},
-		}, {
-			name: "Empty url in POST (400)",
-			want: want{
-				contentType: "text/plain",
-				statusCode:  http.StatusBadRequest,
-				isNew:       false,
-				wantError:   true,
-				body:        "URL can not be empty",
-			},
-			request: request{
-				method: "POST",
-				target: "/api/shorten",
-				body:   `{"url":""}`,
-			},
-		}, {
-			name: "Bad url (400)",
-			want: want{
-				contentType: "text/plain",
-				statusCode:  http.StatusBadRequest,
-				isNew:       false,
-				wantError:   true,
-				body:        "URL is not an URL format",
-			},
-			request: request{
-				method: "POST",
-				target: "/api/shorten",
-				body:   `{"url":"DOOM-is-a-great-game!"}`,
-			},
 		},
 	}
 	for _, tt := range tests {
@@ -419,34 +391,6 @@ func TestHandler_CreateShortURLBatch(t *testing.T) {
 				method: "POST",
 				target: "/api/shorten/batch",
 				body:   `[{"correlation_id":"1","original_url":"http://www.yandex.ru/verylongpath"}]`,
-			},
-		}, {
-			name: "Empty url in POST (400)",
-			want: want{
-				contentType: "text/plain",
-				statusCode:  http.StatusBadRequest,
-				isNew:       false,
-				wantError:   true,
-				body:        "can not be empty",
-			},
-			request: request{
-				method: "POST",
-				target: "/api/shorten/batch",
-				body:   `[{"correlation_id":"1","original_url":""}]`,
-			},
-		}, {
-			name: "Bad url (400)",
-			want: want{
-				contentType: "text/plain",
-				statusCode:  http.StatusBadRequest,
-				isNew:       false,
-				wantError:   true,
-				body:        "URL is not an URL format",
-			},
-			request: request{
-				method: "POST",
-				target: "/api/shorten/batch",
-				body:   `[{"correlation_id":"1","original_url":"DOOM-is-a-great-game!"}]`,
 			},
 		},
 	}

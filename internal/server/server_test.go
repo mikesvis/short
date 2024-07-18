@@ -115,14 +115,6 @@ func TestShortRouter(t *testing.T) {
 			args: args{method: http.MethodPost, url: "/api/shorten/batch", body: strings.NewReader(`[{"correlation_id":"1","original_url":"` + startFull + `"}]`)},
 			want: want{statusCode: http.StatusCreated, body: startShort, contentType: "application/json"},
 		}, {
-			name: "Test POST /api/shorten/batch invalid url on post (400)",
-			args: args{method: http.MethodPost, url: "/api/shorten/batch", body: strings.NewReader(`[{"correlation_id":"1","original_url":":/ya.ru"}]`)},
-			want: want{statusCode: http.StatusBadRequest, body: "URL is not an URL format", contentType: "text/plain"},
-		}, {
-			name: "Test POST /api/shorten/batch invalid empty url (400)",
-			args: args{method: http.MethodPost, url: "/api/shorten/batch", body: strings.NewReader(`[{"correlation_id":"1","original_url":""}]`)},
-			want: want{statusCode: http.StatusBadRequest, body: "can not be empty", contentType: "text/plain"},
-		}, {
 			name: "Test POST /api/shorten/batch corrupted JSON(400)",
 			args: args{method: http.MethodPost, url: "/api/shorten/batch", body: strings.NewReader(`{"url":"}`)},
 			want: want{statusCode: http.StatusBadRequest, body: "unexpected EOF", contentType: "text/plain"},

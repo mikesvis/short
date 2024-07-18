@@ -211,8 +211,8 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 	var response []api.BatchResponse
 	for k, v := range stored {
 		response = append(response, api.BatchResponse{
-			CorrelationID: api.CorrelationID(k),
-			ShortURL:      api.ShortURL(urlformat.FormatURL(string(h.config.BaseURL), v.Short)),
+			CorrelationID: k,
+			ShortURL:      urlformat.FormatURL(string(h.config.BaseURL), v.Short),
 		})
 	}
 
