@@ -13,12 +13,7 @@ type Config struct {
 }
 
 func NewConfig() *Config {
-	config := Config{
-		ServerAddress:   "localhost:8080",
-		BaseURL:         "http://localhost:8080",
-		FileStoragePath: "",
-		DatabaseDSN:     "",
-	}
+	var config Config
 
 	parseFlags(&config)
 	env.Parse(&config)
@@ -27,8 +22,8 @@ func NewConfig() *Config {
 }
 
 func parseFlags(c *Config) {
-	flag.StringVarP(&c.ServerAddress, "address", "a", "", "address of shortener service server")
-	flag.StringVarP(&c.BaseURL, "basepath", "b", "", "address of short link basepath")
+	flag.StringVarP(&c.ServerAddress, "address", "a", "localhost:8080", "address of shortener service server")
+	flag.StringVarP(&c.BaseURL, "basepath", "b", "http://localhost:8080", "address of short link basepath")
 	flag.StringVarP(&c.FileStoragePath, "file_storage_path", "f", "", "path to file storage of URLs")
 	flag.StringVarP(&c.DatabaseDSN, "database_dsn", "d", "", "db connection string")
 	flag.Parse()
