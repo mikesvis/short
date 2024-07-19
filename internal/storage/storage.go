@@ -2,9 +2,9 @@ package storage
 
 import (
 	"context"
-	"database/sql"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
@@ -37,7 +37,7 @@ type StoragePingerCloser interface {
 
 func NewStorage(c *config.Config) Storage {
 	if len(string(c.DatabaseDSN)) != 0 {
-		db, err := sql.Open("pgx", string(c.DatabaseDSN))
+		db, err := sqlx.Open("postgres", string(c.DatabaseDSN))
 		if err != nil {
 			panic(err)
 		}

@@ -8,21 +8,22 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jmoiron/sqlx"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/errors"
 )
 
 type postgresDBItem struct {
-	ID       string
-	FullURL  string
-	ShortKey string
+	ID       string `db:"id"`
+	FullURL  string `db:"full_url"`
+	ShortKey string `db:"short_key"`
 }
 
 type Postgres struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func NewPostgres(db *sql.DB) *Postgres {
+func NewPostgres(db *sqlx.DB) *Postgres {
 	err := bootstrapDB(db)
 	if err != nil {
 		panic(err)
@@ -31,7 +32,7 @@ func NewPostgres(db *sql.DB) *Postgres {
 	return &Postgres{db}
 }
 
-func bootstrapDB(db *sql.DB) error {
+func bootstrapDB(db *sqlx.DB) error {
 	// мда, чет я это... тут точно транзакция не нужна была :)
 	createQuery := `
 		CREATE TABLE IF NOT EXISTS short (
@@ -49,7 +50,7 @@ func bootstrapDB(db *sql.DB) error {
 func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
 	// транзакция тут тоже не нужна
 	// если получилось записать без конфликтов - то ок
-	// если был конфликт, то и так не записали - нечего откатывать
+	// если было конфликта, то и так не записали - нечего откатывать
 	emptyResult := domain.URL{}
 
 	stmt, err := s.db.PrepareContext(ctx, `INSERT INTO short (id, full_url, short_key) VALUES ($1, $2, $3) ON CONFLICT (short_key) DO NOTHING`)
@@ -79,11 +80,12 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 		return u, nil
 	}
 
-	// Была ошибка пересечения по короткому урлу, забираем старый короткий урл который уже был в базе
+	// Был конфликт пересечения по короткому урлу, забираем старый короткий урл который уже был в базе
 	// Как я не пробовал избавится от этого селекта - не смог
 	// RETURNING id - работает только если вставили без ошибок
 	// UPSERT делать нельзя - поскольку мне нечего исключать из SET (нельзя перезаписывать старый короткий урл,
 	// а зачем перезаписывать id для чего? Все равно придется делать SELECT по нему для получение старого короткого урла
+	// эта рализация была для предыдущего драйвера, в StoreBatch использую  sqlx
 	old, err := s.GetByFull(ctx, u.Full)
 	if err != nil {
 		return emptyResult, err
@@ -151,65 +153,69 @@ func (s *Postgres) Ping(ctx context.Context) error {
 }
 
 func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[string]domain.URL, error) {
-	// подход в рамках одной транзации: берем 1 элемент, смотрим есть ли он в базе,
-	// если есть, то ничего не делаем, просто замеяем его урл на старый
-	// если нет - пишем в базу
-	// мое мнение: это убогое решение, поскольку будет порождено столько транзакций/select'ов/insert'ов
-	// сколько элементов пришло в метод, реплике может стать очень плохо в перспективе кол-ва эл-тов на входе
-	// надо делать завдержку реплики
+	// в мапере хранится полный урл = ключ корреляции
+	mapper := make(map[string]string, len(us))
+	// это хотим сохранить, но существующие будут удаляться из добавления в базу
+	toStore := make(map[string]domain.URL, len(us))
+	// слайс для составления select
+	fullUrls := []string{}
+
 	for k, v := range us {
-		tx, err := s.db.BeginTx(ctx, nil)
-		if err != nil {
-			return nil, err
+		mapper[string(v.Full)] = k
+		fullUrls = append(fullUrls, v.Full)
+		toStore[k] = v
+	}
+
+	// какое-то неведомое колдунство? Иначе where in не сделать
+	query, args, err := sqlx.In("SELECT id, full_url, short_key FROM short WHERE full_url IN (?)", fullUrls)
+	if err != nil {
+		return nil, err
+	}
+	query = s.db.Rebind(query)
+
+	// ищем существующие
+	existingItems := []postgresDBItem{}
+	err = s.db.SelectContext(ctx, &existingItems, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range existingItems {
+		// удаляем то что сохранять не нужно
+		delete(toStore, mapper[string(v.FullURL)])
+		// воскрешаем старые урлы сразу в результативную мапу
+		us[mapper[string(v.FullURL)]] = domain.URL{
+			Full:  v.FullURL,
+			Short: v.ShortKey,
 		}
-		defer tx.Rollback()
+	}
 
-		selectQuery := `SELECT id, full_url, short_key FROM short WHERE "full_url" = $1`
-		stmt, err := tx.PrepareContext(ctx, selectQuery)
-		if err != nil {
-			return nil, err
-		}
-		defer stmt.Close()
+	// нечего сохранять - уходим
+	if len(toStore) == 0 {
+		return us, nil
+	}
 
-		row := stmt.QueryRowContext(ctx, v.Full)
-
-		var p postgresDBItem
-		err = row.Scan(&p.ID, &p.FullURL, &p.ShortKey)
-		if err != sql.ErrNoRows && err != nil {
-			return nil, err
-		}
-
-		// такой элемент уже есть, не добавляем, узнаем его старый урл
-		if err == nil {
-			us[k] = domain.URL{
-				Full:  v.Full,
-				Short: p.ShortKey,
-			}
-			continue
-		}
-
-		// этот элемент новый, будем его сохранять
-		stmt, err = tx.PrepareContext(ctx, `INSERT INTO short (id, full_url, short_key) VALUES ($1, $2, $3)`)
-		if err != nil {
-			return nil, err
-		}
-		defer stmt.Close()
-
-		item := postgresDBItem{
+	// запоняем структуры для сохранения новых данных
+	newItems := []postgresDBItem{}
+	for _, v := range toStore {
+		newItems = append(newItems, postgresDBItem{
 			ID:       uuid.NewString(),
 			FullURL:  v.Full,
 			ShortKey: v.Short,
-		}
+		})
+	}
 
-		_, err = stmt.ExecContext(ctx, item.ID, item.FullURL, item.ShortKey)
-		if err != nil {
-			return nil, err
-		}
+	// сделаем добавление через транзакцию
+	tx := s.db.MustBeginTx(ctx, nil)
+	defer tx.Rollback()
+	_, err = tx.NamedExecContext(ctx, `INSERT INTO short (id, full_url, short_key) VALUES (:id, :full_url, :short_key)`, newItems)
+	if err != nil {
+		return nil, err
+	}
 
-		err = tx.Commit()
-		if err != nil {
-			return nil, err
-		}
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
 	}
 
 	return us, nil
