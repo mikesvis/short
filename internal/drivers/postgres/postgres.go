@@ -32,12 +32,7 @@ func NewPostgres(db *sql.DB) *Postgres {
 }
 
 func bootstrapDB(db *sql.DB) error {
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
+	// мда, чет я это... тут точно транзакция не нужна была :)
 	createQuery := `
 		CREATE TABLE IF NOT EXISTS short (
 			id varchar(36) PRIMARY KEY,
@@ -45,25 +40,25 @@ func bootstrapDB(db *sql.DB) error {
 			short_key varchar(255) UNIQUE NOT NULL
 		)
 	`
-	tx.Exec(createQuery)
 
-	return tx.Commit()
+	_, error := db.Exec(createQuery)
+
+	return error
 }
 
 func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
+	// транзакция тут тоже не нужна
+	// если получилось записать без конфликтов - то ок
+	// если был конфликт, то и так не записали - нечего откатывать
 	emptyResult := domain.URL{}
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return emptyResult, err
-	}
-	defer tx.Rollback()
 
-	stmt, err := tx.PrepareContext(ctx, `INSERT INTO short (id, full_url, short_key) VALUES ($1, $2, $3) ON CONFLICT (short_key) DO NOTHING`)
+	stmt, err := s.db.PrepareContext(ctx, `INSERT INTO short (id, full_url, short_key) VALUES ($1, $2, $3) ON CONFLICT (short_key) DO NOTHING`)
 	if err != nil {
 		return emptyResult, err
 	}
 	defer stmt.Close()
 
+	// генерируем новый короткий урл
 	item := postgresDBItem{
 		ID:       uuid.NewString(),
 		FullURL:  u.Full,
@@ -79,12 +74,16 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 		}
 	}
 
-	// Ошибок не было, значит успешно сохранили
+	// Ошибок не было, значит успешно сохранили с новым коротким урлом
 	if err == nil {
-		return u, tx.Commit()
+		return u, nil
 	}
 
-	// Была ошибка пересечения по ключу, забираем старый
+	// Была ошибка пересечения по короткому урлу, забираем старый короткий урл который уже был в базе
+	// Как я не пробовал избавится от этого селекта - не смог
+	// RETURNING id - работает только если вставили без ошибок
+	// UPSERT делать нельзя - поскольку мне нечего исключать из SET (нельзя перезаписывать старый короткий урл,
+	// а зачем перезаписывать id для чего? Все равно придется делать SELECT по нему для получение старого короткого урла
 	old, err := s.GetByFull(ctx, u.Full)
 	if err != nil {
 		return emptyResult, err
@@ -94,87 +93,54 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 }
 
 func (s *Postgres) GetByFull(ctx context.Context, fullURL string) (domain.URL, error) {
-	// тут можно дискутировать зачем 2 запроса, но сам по себе select count всегда быстрее select columns
-	// если есть возможность сэкономить - почему бы и нет? второй вариант - сделать все через 1 селект, но тогда
-	// придется проверять на пустой ответ, а он рализован в виде ошибки, мне так не нравится.
-	// так что сначала ищем count(), если не нашли - уходим, а если нашли - детализируем/уточняем
-	// ищем по полному урлу
-	stmt, err := s.db.PrepareContext(ctx, `SELECT COUNT(1) FROM short WHERE "full_url" = $1`)
+	emptyResult := domain.URL{}
+
+	// пробуем получить по полному урлу
+	stmt, err := s.db.PrepareContext(ctx, `SELECT id, full_url, short_key FROM short WHERE "full_url" = $1`)
 	if err != nil {
-		return domain.URL{}, err
+		return emptyResult, err
 	}
 	defer stmt.Close()
 
 	row := stmt.QueryRowContext(ctx, fullURL)
 
-	var rowsNum int
-
-	err = row.Scan(&rowsNum)
-	if err != nil {
-		return domain.URL{}, err
-	}
-
-	// совпадений нет, возвращаем пустой объект
-	if rowsNum == 0 {
-		return domain.URL{}, nil
-	}
-
-	// совпадения есть, получаем объект
-	stmt, err = s.db.PrepareContext(ctx, `SELECT id, full_url, short_key FROM short WHERE "full_url" = $1`)
-	if err != nil {
-		return domain.URL{}, err
-	}
-	defer stmt.Close()
-
-	row = stmt.QueryRowContext(ctx, fullURL)
-
 	var p postgresDBItem
-
 	err = row.Scan(&p.ID, &p.FullURL, &p.ShortKey)
+	if _goerrors.Is(err, sql.ErrNoRows) {
+		// нет совпадения по полному урлу, вернем пустой результат
+		return emptyResult, nil
+	}
+
 	if err != nil {
-		return domain.URL{}, err
+		// какая-то другая ошибка
+		return emptyResult, err
 	}
 
 	return domain.URL{Full: p.FullURL, Short: p.ShortKey}, nil
 }
 
 func (s *Postgres) GetByShort(ctx context.Context, shortURL string) (domain.URL, error) {
-	// мне б оторвали голову за такое дублирование кода...
-	// ищем по короткому урлу
-	stmt, err := s.db.PrepareContext(ctx, `SELECT COUNT(1) FROM short WHERE "short_key" = $1`)
+	emptyResult := domain.URL{}
+
+	// пробуем получить по короткому урлу
+	stmt, err := s.db.PrepareContext(ctx, `SELECT id, full_url, short_key FROM short WHERE "short_key" = $1`)
 	if err != nil {
-		return domain.URL{}, err
+		return emptyResult, err
 	}
 	defer stmt.Close()
 
 	row := stmt.QueryRowContext(ctx, shortURL)
 
-	var rowsNum int
-
-	err = row.Scan(&rowsNum)
-	if err != nil {
-		return domain.URL{}, err
-	}
-
-	// совпадений нет, возвращаем пустой объект
-	if rowsNum == 0 {
-		return domain.URL{}, nil
-	}
-
-	// совпадения есть, получаем объект
-	stmt, err = s.db.PrepareContext(ctx, `SELECT id, full_url, short_key FROM short WHERE "short_key" = $1`)
-	if err != nil {
-		return domain.URL{}, err
-	}
-	defer stmt.Close()
-
-	row = stmt.QueryRowContext(ctx, shortURL)
-
 	var p postgresDBItem
-
 	err = row.Scan(&p.ID, &p.FullURL, &p.ShortKey)
+	if _goerrors.Is(err, sql.ErrNoRows) {
+		// нет совпадения по короткому урлу, вернем пустой результат
+		return emptyResult, nil
+	}
+
 	if err != nil {
-		return domain.URL{}, err
+		// какая-то другая ошибка
+		return emptyResult, err
 	}
 
 	return domain.URL{Full: p.FullURL, Short: p.ShortKey}, nil

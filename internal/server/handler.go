@@ -128,23 +128,23 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	URL = urlformat.SanitizeURL(URL)
+	item := domain.URL{
+		Full:  URL,
+		Short: keygen.GetRandkey(keygen.KeyLength),
+	}
 	status := http.StatusConflict
 
-	item, err := h.storage.GetByFull(ctx, URL)
-	if err != nil {
+	item, err = h.storage.Store(ctx, item)
+	if err != nil && !_goerrors.Is(err, errors.ErrConflict) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	if (item == domain.URL{}) {
-		item = domain.URL{
-			Full:  URL,
-			Short: keygen.GetRandkey(keygen.KeyLength),
-		}
-		h.storage.Store(ctx, item)
+	if err == nil {
 		status = http.StatusCreated
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 
@@ -185,7 +185,7 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	var request []api.BatchRequest
+	var request api.BatchRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -208,9 +208,9 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var response []api.BatchResponse
+	var response api.BatchResponse
 	for k, v := range stored {
-		response = append(response, api.BatchResponse{
+		response = append(response, api.BatchResponseItem{
 			CorrelationID: k,
 			ShortURL:      urlformat.FormatURL(string(h.config.BaseURL), v.Short),
 		})
