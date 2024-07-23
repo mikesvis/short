@@ -100,9 +100,11 @@ func TestGetFullURL(t *testing.T) {
 func TestCreateShortURLText(t *testing.T) {
 	c := testConfig()
 	s := inmemory.NewInMemory()
-	s.Store(context.Background(), domain.URL{
-		Full:  "http://www.yandex.ru/verylongpath",
-		Short: "short",
+	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
+	s.Store(ctx, domain.URL{
+		Full:   "http://www.yandex.ru/verylongpath",
+		UserID: "Doomguy",
+		Short:  "short",
 	})
 
 	type want struct {
@@ -182,7 +184,7 @@ func TestCreateShortURLText(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body))
+			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(ctx)
 			w := httptest.NewRecorder()
 			handler := NewHandler(c, s)
 			handle := http.HandlerFunc(handler.CreateShortURLText)
@@ -267,9 +269,11 @@ func TestFail(t *testing.T) {
 func TestCreateShortURLJSON(t *testing.T) {
 	c := testConfig()
 	s := inmemory.NewInMemory()
-	s.Store(context.Background(), domain.URL{
-		Full:  "http://www.yandex.ru/verylongpath",
-		Short: "short",
+	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
+	s.Store(context.WithValue(ctx, domain.ContextUserKey, "DoomGuy"), domain.URL{
+		UserID: "DoomGuy",
+		Full:   "http://www.yandex.ru/verylongpath",
+		Short:  "short",
 	})
 	type want struct {
 		contentType string
@@ -320,7 +324,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body))
+			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(ctx)
 			w := httptest.NewRecorder()
 			handler := NewHandler(c, s)
 			handle := http.HandlerFunc(handler.CreateShortURLJSON)
@@ -355,7 +359,8 @@ func TestCreateShortURLJSON(t *testing.T) {
 func TestHandler_CreateShortURLBatch(t *testing.T) {
 	c := testConfig()
 	s := inmemory.NewInMemory()
-	s.StoreBatch(context.Background(), map[string]domain.URL{
+	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
+	s.StoreBatch(ctx, map[string]domain.URL{
 		"1": {
 			Full:  "http://www.yandex.ru/verylongpath",
 			Short: "short",
@@ -396,7 +401,7 @@ func TestHandler_CreateShortURLBatch(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body))
+			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(ctx)
 			w := httptest.NewRecorder()
 			handler := NewHandler(c, s)
 			handle := http.HandlerFunc(handler.CreateShortURLBatch)

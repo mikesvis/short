@@ -39,7 +39,7 @@ func TestNewStorageURL(t *testing.T) {
 }
 
 func Test_storageURL_Store(t *testing.T) {
-	ctx := context.Background()
+	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
 
 	tests := []struct {
 		name string
@@ -49,11 +49,13 @@ func Test_storageURL_Store(t *testing.T) {
 		{
 			name: "Store item",
 			args: domain.URL{
-				Full:  "http://www.yandex.ru/verylongpath",
-				Short: "short",
+				UserID: "DoomGuy",
+				Full:   "http://www.yandex.ru/verylongpath",
+				Short:  "short",
 			},
 			want: `{
 				"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72",
+				"user_id":"DoomGuy",
 				"short_url": "short",
 				"original_url":"http://www.yandex.ru/verylongpath"
 			}`,
@@ -173,7 +175,7 @@ func Test_storageURL_GetByShort(t *testing.T) {
 }
 
 func TestFileDB_StoreBatch(t *testing.T) {
-	ctx := context.Background()
+	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
 
 	type want struct {
 		stored        map[string]domain.URL
@@ -189,19 +191,22 @@ func TestFileDB_StoreBatch(t *testing.T) {
 			name: "Batch store items",
 			args: map[string]domain.URL{
 				"1": {
-					Full:  "http://www.yandex.ru/verylongpath1",
-					Short: "short1",
+					UserID: "DoomGuy",
+					Full:   "http://www.yandex.ru/verylongpath1",
+					Short:  "short1",
 				},
 			},
 			want: want{
 				stored: map[string]domain.URL{
 					"1": {
-						Full:  "http://www.yandex.ru/verylongpath1",
-						Short: "short1",
+						UserID: "DoomGuy",
+						Full:   "http://www.yandex.ru/verylongpath1",
+						Short:  "short1",
 					},
 				},
 				storageString: `{
 					"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72",
+					"user_id":"DoomGuy",
 					"short_url": "short1",
 					"original_url":"http://www.yandex.ru/verylongpath1"
 				}`,

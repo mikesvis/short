@@ -14,6 +14,7 @@ import (
 
 type fileDBItem struct {
 	UUID        string `json:"uuid"`
+	UserID      string `json:"user_id"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 }
@@ -51,6 +52,7 @@ func (s *FileDB) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
 
 	item := fileDBItem{
 		UUID:        uuid.NewString(),
+		UserID:      u.UserID,
 		ShortURL:    u.Short,
 		OriginalURL: u.Full,
 	}
@@ -140,8 +142,9 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 			// восстанавливаем его старый short вместо нового
 			delete(wantToStore, i.OriginalURL)
 			us[k] = domain.URL{
-				Full:  i.OriginalURL,
-				Short: i.ShortURL,
+				UserID: i.UserID,
+				Full:   i.OriginalURL,
+				Short:  i.ShortURL,
 			}
 		}
 
@@ -170,6 +173,7 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 
 		item := fileDBItem{
 			UUID:        uuid.NewString(),
+			UserID:      us[v].UserID,
 			ShortURL:    us[v].Short,
 			OriginalURL: us[v].Full,
 		}

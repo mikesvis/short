@@ -40,7 +40,7 @@ func testServer() *httptest.Server {
 	s := storage.NewStorage(c)
 	h := NewHandler(c, s)
 	l := logger.NewLogger()
-	return httptest.NewServer(NewRouter(h, middleware.RequestResponseLogger(l)))
+	return httptest.NewServer(NewRouter(h, middleware.RequestResponseLogger(l), middleware.SignIn))
 }
 
 func TestShortRouter(t *testing.T) {

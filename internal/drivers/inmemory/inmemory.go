@@ -67,8 +67,9 @@ func (s *InMemory) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 			// восстанавливаем его старый short вместо нового
 			delete(wantToStore, v.Full)
 			us[k] = domain.URL{
-				Full:  v.Full,
-				Short: v.Short,
+				UserID: v.UserID,
+				Full:   v.Full,
+				Short:  v.Short,
 			}
 		}
 

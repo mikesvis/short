@@ -44,7 +44,7 @@ func SignIn(next http.Handler) http.Handler {
 					return
 				}
 
-				ctx := setUserIdToContext(r, claims.UserID)
+				ctx := setUserIDToContext(r, claims.UserID)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
@@ -71,7 +71,7 @@ func SignIn(next http.Handler) http.Handler {
 			Expires: expirationTime,
 		})
 
-		ctx := setUserIdToContext(r, userID)
+		ctx := setUserIDToContext(r, userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -92,6 +92,6 @@ func createTokenString(userID string, exp time.Time) (string, error) {
 	return tokenString, err
 }
 
-func setUserIdToContext(r *http.Request, userID string) context.Context {
-	return context.WithValue(r.Context(), domain.ContextUserKey, 42)
+func setUserIDToContext(r *http.Request, userID string) context.Context {
+	return context.WithValue(r.Context(), domain.ContextUserKey, userID)
 }

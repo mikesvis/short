@@ -77,8 +77,9 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 
 	URL := urlformat.SanitizeURL(string(body))
 	item := domain.URL{
-		Full:  URL,
-		Short: keygen.GetRandkey(keygen.KeyLength),
+		UserID: ctx.Value(domain.ContextUserKey).(string),
+		Full:   URL,
+		Short:  keygen.GetRandkey(keygen.KeyLength),
 	}
 	status := http.StatusConflict
 
@@ -196,8 +197,9 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 	pack := make(map[string]domain.URL)
 	for _, v := range request {
 		pack[string(v.CorrelationID)] = domain.URL{
-			Full:  string(v.OriginalURL),
-			Short: keygen.GetRandkey(keygen.KeyLength),
+			UserID: ctx.Value(domain.ContextUserKey).(string),
+			Full:   string(v.OriginalURL),
+			Short:  keygen.GetRandkey(keygen.KeyLength),
 		}
 	}
 
