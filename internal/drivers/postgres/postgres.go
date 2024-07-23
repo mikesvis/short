@@ -15,6 +15,7 @@ import (
 
 type postgresDBItem struct {
 	ID       string `db:"id"`
+	UserID   string `db:"user_id"`
 	FullURL  string `db:"full_url"`
 	ShortKey string `db:"short_key"`
 }
@@ -33,27 +34,22 @@ func NewPostgres(db *sqlx.DB) *Postgres {
 }
 
 func bootstrapDB(db *sqlx.DB) error {
-	// мда, чет я это... тут точно транзакция не нужна была :)
-	createQuery := `
-		CREATE TABLE IF NOT EXISTS short (
+	createTableShort := `
+		CREATE TABLE IF NOT EXISTS shorts (
 			id varchar(36) PRIMARY KEY,
+			user_id varchar(36) NOT NULL,
 			full_url varchar(1000) UNIQUE NOT NULL,
 			short_key varchar(255) UNIQUE NOT NULL
 		)
 	`
-
-	_, error := db.Exec(createQuery)
-
-	return error
+	_, err := db.Exec(createTableShort)
+	return err
 }
 
 func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
-	// транзакция тут тоже не нужна
-	// если получилось записать без конфликтов - то ок
-	// если было конфликта, то и так не записали - нечего откатывать
 	emptyResult := domain.URL{}
 
-	stmt, err := s.db.PrepareContext(ctx, `INSERT INTO short (id, full_url, short_key) VALUES ($1, $2, $3) ON CONFLICT (short_key) DO NOTHING`)
+	stmt, err := s.db.PrepareContext(ctx, `INSERT INTO shorts (id, user_id, full_url, short_key) VALUES ($1, $2, $3, $4) ON CONFLICT (short_key) DO NOTHING`)
 	if err != nil {
 		return emptyResult, err
 	}
@@ -62,11 +58,12 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 	// генерируем новый короткий урл
 	item := postgresDBItem{
 		ID:       uuid.NewString(),
+		UserID:   u.UserID,
 		FullURL:  u.Full,
 		ShortKey: u.Short,
 	}
 
-	_, err = stmt.ExecContext(ctx, item.ID, item.FullURL, item.ShortKey)
+	_, err = stmt.ExecContext(ctx, item.ID, item.UserID, item.FullURL, item.ShortKey)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if _goerrors.As(err, &pgErr) && pgErr.Code != pgerrcode.UniqueViolation {
@@ -81,11 +78,6 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 	}
 
 	// Был конфликт пересечения по короткому урлу, забираем старый короткий урл который уже был в базе
-	// Как я не пробовал избавится от этого селекта - не смог
-	// RETURNING id - работает только если вставили без ошибок
-	// UPSERT делать нельзя - поскольку мне нечего исключать из SET (нельзя перезаписывать старый короткий урл,
-	// а зачем перезаписывать id для чего? Все равно придется делать SELECT по нему для получение старого короткого урла
-	// эта рализация была для предыдущего драйвера, в StoreBatch использую  sqlx
 	old, err := s.GetByFull(ctx, u.Full)
 	if err != nil {
 		return emptyResult, err
@@ -98,7 +90,7 @@ func (s *Postgres) GetByFull(ctx context.Context, fullURL string) (domain.URL, e
 	emptyResult := domain.URL{}
 
 	// пробуем получить по полному урлу
-	stmt, err := s.db.PrepareContext(ctx, `SELECT id, full_url, short_key FROM short WHERE "full_url" = $1`)
+	stmt, err := s.db.PrepareContext(ctx, `SELECT id, full_url, short_key FROM shorts WHERE "full_url" = $1`)
 	if err != nil {
 		return emptyResult, err
 	}
@@ -125,7 +117,7 @@ func (s *Postgres) GetByShort(ctx context.Context, shortURL string) (domain.URL,
 	emptyResult := domain.URL{}
 
 	// пробуем получить по короткому урлу
-	stmt, err := s.db.PrepareContext(ctx, `SELECT id, full_url, short_key FROM short WHERE "short_key" = $1`)
+	stmt, err := s.db.PrepareContext(ctx, `SELECT id, full_url, short_key FROM shorts WHERE "short_key" = $1`)
 	if err != nil {
 		return emptyResult, err
 	}
@@ -167,7 +159,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	}
 
 	// какое-то неведомое колдунство? Иначе where in не сделать
-	query, args, err := sqlx.In("SELECT id, full_url, short_key FROM short WHERE full_url IN (?)", fullUrls)
+	query, args, err := sqlx.In("SELECT id, full_url, short_key FROM shorts WHERE full_url IN (?)", fullUrls)
 	if err != nil {
 		return nil, err
 	}
@@ -200,6 +192,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	for _, v := range toStore {
 		newItems = append(newItems, postgresDBItem{
 			ID:       uuid.NewString(),
+			UserID:   v.UserID,
 			FullURL:  v.Full,
 			ShortKey: v.Short,
 		})
@@ -208,7 +201,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	// сделаем добавление через транзакцию
 	tx := s.db.MustBeginTx(ctx, nil)
 	defer tx.Rollback()
-	_, err = tx.NamedExecContext(ctx, `INSERT INTO short (id, full_url, short_key) VALUES (:id, :full_url, :short_key)`, newItems)
+	_, err = tx.NamedExecContext(ctx, `INSERT INTO shorts (id, user_id, full_url, short_key) VALUES (:id, :user_id, :full_url, :short_key)`, newItems)
 	if err != nil {
 		return nil, err
 	}

@@ -129,8 +129,9 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 
 	URL = urlformat.SanitizeURL(URL)
 	item := domain.URL{
-		Full:  URL,
-		Short: keygen.GetRandkey(keygen.KeyLength),
+		UserID: ctx.Value(domain.ContextUserKey).(string),
+		Full:   URL,
+		Short:  keygen.GetRandkey(keygen.KeyLength),
 	}
 	status := http.StatusConflict
 
