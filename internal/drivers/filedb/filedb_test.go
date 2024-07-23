@@ -2,6 +2,7 @@ package filedb
 
 import (
 	"bufio"
+	"context"
 	"math/rand"
 	"os"
 	"testing"
@@ -38,6 +39,8 @@ func TestNewStorageURL(t *testing.T) {
 }
 
 func Test_storageURL_Store(t *testing.T) {
+	ctx := context.Background()
+
 	tests := []struct {
 		name string
 		args domain.URL
@@ -70,7 +73,7 @@ func Test_storageURL_Store(t *testing.T) {
 			}
 
 			// Storing
-			s.Store(tt.args)
+			s.Store(ctx, tt.args)
 
 			// Reading temp file
 			file, err := os.OpenFile(s.filePath, os.O_RDONLY, 0666)
@@ -100,6 +103,8 @@ func createAndSeedTestStorage(t *testing.T) string {
 }
 
 func Test_storageURL_GetByFull(t *testing.T) {
+	ctx := context.Background()
+
 	tests := []struct {
 		name string
 		args string
@@ -124,7 +129,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 			s := &FileDB{
 				filePath: tmpFile,
 			}
-			item, _ := s.GetByFull(tt.args)
+			item, _ := s.GetByFull(ctx, tt.args)
 			assert.IsType(t, tt.want, item)
 			assert.EqualValues(t, tt.want, item)
 			os.Remove(tmpFile)
@@ -133,6 +138,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 }
 
 func Test_storageURL_GetByShort(t *testing.T) {
+	ctx := context.Background()
 
 	tests := []struct {
 		name string
@@ -158,10 +164,80 @@ func Test_storageURL_GetByShort(t *testing.T) {
 			s := &FileDB{
 				filePath: tmpFile,
 			}
-			item, _ := s.GetByShort(tt.args)
+			item, _ := s.GetByShort(ctx, tt.args)
 			assert.IsType(t, tt.want, item)
 			assert.EqualValues(t, tt.want, item)
 			os.Remove(tmpFile)
+		})
+	}
+}
+
+func TestFileDB_StoreBatch(t *testing.T) {
+	ctx := context.Background()
+
+	type want struct {
+		stored        map[string]domain.URL
+		storageString string
+	}
+
+	tests := []struct {
+		name string
+		args map[string]domain.URL
+		want want
+	}{
+		{
+			name: "Batch store items",
+			args: map[string]domain.URL{
+				"1": {
+					Full:  "http://www.yandex.ru/verylongpath1",
+					Short: "short1",
+				},
+			},
+			want: want{
+				stored: map[string]domain.URL{
+					"1": {
+						Full:  "http://www.yandex.ru/verylongpath1",
+						Short: "short1",
+					},
+				},
+				storageString: `{
+					"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72",
+					"short_url": "short1",
+					"original_url":"http://www.yandex.ru/verylongpath1"
+				}`,
+			},
+		},
+	}
+	uuid.SetRand(rand.New(rand.NewSource(1)))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Creating temp file
+			tmpFile, err := os.CreateTemp(os.TempDir(), "dbtest*.json")
+			require.Nil(t, err)
+			tmpFile.Close()
+
+			// Using temp file in storage
+			s := &FileDB{
+				filePath: tmpFile.Name(),
+			}
+
+			// Storing
+			stored, err := s.StoreBatch(ctx, tt.args)
+			require.NoError(t, err)
+
+			// Reading temp file
+			file, err := os.OpenFile(s.filePath, os.O_RDONLY, 0666)
+			require.Nil(t, err)
+			defer file.Close()
+			scanner := bufio.NewScanner(file)
+			scanner.Scan()
+			fileString := scanner.Text()
+
+			assert.EqualValues(t, tt.want.stored, stored)
+			assert.JSONEq(t, tt.want.storageString, fileString)
+
+			// Removing temp file
+			os.Remove(tmpFile.Name())
 		})
 	}
 }

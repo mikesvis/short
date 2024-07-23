@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,7 +10,7 @@ import (
 
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
-	"github.com/mikesvis/short/internal/memorymap"
+	"github.com/mikesvis/short/internal/drivers/inmemory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,8 +25,8 @@ func testConfig() *config.Config {
 
 func TestGetFullURL(t *testing.T) {
 	c := testConfig()
-	s := memorymap.NewMemoryMap()
-	s.Store(domain.URL{
+	s := inmemory.NewInMemory()
+	s.Store(context.Background(), domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
 		Short: "short",
 	})
@@ -98,8 +99,8 @@ func TestGetFullURL(t *testing.T) {
 
 func TestCreateShortURLText(t *testing.T) {
 	c := testConfig()
-	s := memorymap.NewMemoryMap()
-	s.Store(domain.URL{
+	s := inmemory.NewInMemory()
+	s.Store(context.Background(), domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
 		Short: "short",
 	})
@@ -122,10 +123,10 @@ func TestCreateShortURLText(t *testing.T) {
 		request request
 	}{
 		{
-			name: "Get short url from full (200)",
+			name: "Get old short url from full (409)",
 			want: want{
 				contentType: "text/plain",
-				statusCode:  http.StatusOK,
+				statusCode:  http.StatusConflict,
 				isNew:       false,
 				wantError:   false,
 				body:        string(c.BaseURL) + "/short",
@@ -136,7 +137,7 @@ func TestCreateShortURLText(t *testing.T) {
 				body:   "http://www.yandex.ru/verylongpath",
 			},
 		}, {
-			name: "Create short url from full (201)",
+			name: "Create new short url from full (201)",
 			want: want{
 				contentType: "text/plain",
 				statusCode:  http.StatusCreated,
@@ -216,7 +217,7 @@ func TestCreateShortURLText(t *testing.T) {
 func TestFail(t *testing.T) {
 	c := testConfig()
 
-	s := memorymap.NewMemoryMap()
+	s := inmemory.NewInMemory()
 	handler := NewHandler(c, s)
 
 	type request struct {
@@ -265,8 +266,8 @@ func TestFail(t *testing.T) {
 
 func TestCreateShortURLJSON(t *testing.T) {
 	c := testConfig()
-	s := memorymap.NewMemoryMap()
-	s.Store(domain.URL{
+	s := inmemory.NewInMemory()
+	s.Store(context.Background(), domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
 		Short: "short",
 	})
@@ -288,10 +289,10 @@ func TestCreateShortURLJSON(t *testing.T) {
 		request request
 	}{
 		{
-			name: "Get short url from full (200)",
+			name: "Get old short url from full (409)",
 			want: want{
 				contentType: "application/json",
-				statusCode:  http.StatusOK,
+				statusCode:  http.StatusConflict,
 				isNew:       false,
 				wantError:   false,
 				body:        strings.Join([]string{`{"result":"`, string(c.BaseURL), `/short"}`}, ""),
@@ -302,7 +303,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 				body:   `{"url":"http://www.yandex.ru/verylongpath"}`,
 			},
 		}, {
-			name: "Create short url from full (201)",
+			name: "Create new short url from full (201)",
 			want: want{
 				contentType: "application/json",
 				statusCode:  http.StatusCreated,
@@ -315,34 +316,6 @@ func TestCreateShortURLJSON(t *testing.T) {
 				target: "/api/shorten",
 				body:   `{"url":"http://www.yandex.ru/very"}`,
 			},
-		}, {
-			name: "Empty url in POST (400)",
-			want: want{
-				contentType: "text/plain",
-				statusCode:  http.StatusBadRequest,
-				isNew:       false,
-				wantError:   true,
-				body:        "URL can not be empty",
-			},
-			request: request{
-				method: "POST",
-				target: "/api/shorten",
-				body:   `{"url":""}`,
-			},
-		}, {
-			name: "Bad url (400)",
-			want: want{
-				contentType: "text/plain",
-				statusCode:  http.StatusBadRequest,
-				isNew:       false,
-				wantError:   true,
-				body:        "URL is not an URL format",
-			},
-			request: request{
-				method: "POST",
-				target: "/api/shorten",
-				body:   `{"url":"DOOM-is-a-great-game!"}`,
-			},
 		},
 	}
 	for _, tt := range tests {
@@ -351,6 +324,82 @@ func TestCreateShortURLJSON(t *testing.T) {
 			w := httptest.NewRecorder()
 			handler := NewHandler(c, s)
 			handle := http.HandlerFunc(handler.CreateShortURLJSON)
+			handle(w, request)
+			result := w.Result()
+
+			assert.Equal(t, tt.want.statusCode, result.StatusCode)
+
+			response, err := io.ReadAll(result.Body)
+			require.NoError(t, err)
+			err = result.Body.Close()
+			require.NoError(t, err)
+
+			if tt.want.wantError {
+				require.Contains(t, string(response), tt.want.body)
+				return
+			}
+
+			assert.Equal(t, tt.want.contentType, result.Header.Get("Content-Type"))
+
+			if tt.want.isNew {
+				assert.NotEmpty(t, string(response))
+				assert.Contains(t, string(response), tt.want.body)
+				return
+			}
+
+			assert.Contains(t, string(response), tt.want.body)
+		})
+	}
+}
+
+func TestHandler_CreateShortURLBatch(t *testing.T) {
+	c := testConfig()
+	s := inmemory.NewInMemory()
+	s.StoreBatch(context.Background(), map[string]domain.URL{
+		"1": {
+			Full:  "http://www.yandex.ru/verylongpath",
+			Short: "short",
+		},
+	})
+	type want struct {
+		contentType string
+		statusCode  int
+		isNew       bool
+		wantError   bool
+		body        string
+	}
+	type request struct {
+		method string
+		target string
+		body   string
+	}
+	tests := []struct {
+		name    string
+		want    want
+		request request
+	}{
+		{
+			name: "Batch create short url from full (201)",
+			want: want{
+				contentType: "application/json",
+				statusCode:  http.StatusCreated,
+				isNew:       false,
+				wantError:   false,
+				body:        `[{"correlation_id":"1","short_url":"` + string(c.BaseURL) + `/short"}]`,
+			},
+			request: request{
+				method: "POST",
+				target: "/api/shorten/batch",
+				body:   `[{"correlation_id":"1","original_url":"http://www.yandex.ru/verylongpath"}]`,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body))
+			w := httptest.NewRecorder()
+			handler := NewHandler(c, s)
+			handle := http.HandlerFunc(handler.CreateShortURLBatch)
 			handle(w, request)
 			result := w.Result()
 

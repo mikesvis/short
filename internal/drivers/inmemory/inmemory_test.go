@@ -1,6 +1,7 @@
-package memorymap
+package inmemory
 
 import (
+	"context"
 	"math/rand"
 	"testing"
 
@@ -16,25 +17,27 @@ func TestNewStorageURL(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want *MemoryMap
+		want *InMemory
 	}{
 		{
 			name: "New storage is of type",
 			args: args{
 				items: map[domain.ID]domain.URL{},
 			},
-			want: &MemoryMap{},
+			want: &InMemory{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			newStorage := NewMemoryMap()
+			newStorage := NewInMemory()
 			assert.IsType(t, tt.want, newStorage)
 		})
 	}
 }
 
 func Test_storageURL_Store(t *testing.T) {
+	ctx := context.Background()
+
 	type fields struct {
 		items map[domain.ID]domain.URL
 	}
@@ -64,16 +67,18 @@ func Test_storageURL_Store(t *testing.T) {
 	uuid.SetRand(rand.New(rand.NewSource(1)))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &MemoryMap{
+			s := &InMemory{
 				items: tt.fields.items,
 			}
-			s.Store(tt.args)
+			s.Store(ctx, tt.args)
 			assert.EqualValues(t, tt.want, s.items)
 		})
 	}
 }
 
 func Test_storageURL_GetByFull(t *testing.T) {
+	ctx := context.Background()
+
 	type fields struct {
 		items map[domain.ID]domain.URL
 	}
@@ -118,10 +123,10 @@ func Test_storageURL_GetByFull(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &MemoryMap{
+			s := &InMemory{
 				items: tt.fields.items,
 			}
-			item, _ := s.GetByFull(tt.args)
+			item, _ := s.GetByFull(ctx, tt.args)
 			assert.IsType(t, tt.want, item)
 			assert.EqualValues(t, tt.want, item)
 		})
@@ -129,6 +134,8 @@ func Test_storageURL_GetByFull(t *testing.T) {
 }
 
 func Test_storageURL_GetByShort(t *testing.T) {
+	ctx := context.Background()
+
 	type fields struct {
 		items map[domain.ID]domain.URL
 	}
@@ -173,12 +180,56 @@ func Test_storageURL_GetByShort(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &MemoryMap{
+			s := &InMemory{
 				items: tt.fields.items,
 			}
-			item, _ := s.GetByShort(tt.args)
+			item, _ := s.GetByShort(ctx, tt.args)
 			assert.IsType(t, tt.want, item)
 			assert.EqualValues(t, tt.want, item)
+		})
+	}
+}
+
+func TestMemoryMap_StoreBatch(t *testing.T) {
+	ctx := context.Background()
+
+	type fields struct {
+		items map[domain.ID]domain.URL
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   map[string]domain.URL
+		want   map[string]domain.URL
+	}{
+		{
+			name: "Batch store items",
+			fields: fields{
+				items: map[domain.ID]domain.URL{},
+			},
+			args: map[string]domain.URL{
+				"1": {
+					Full:  "http://www.yandex.ru/verylongpath1",
+					Short: "short1",
+				},
+			},
+			want: map[string]domain.URL{
+				"1": {
+					Full:  "http://www.yandex.ru/verylongpath1",
+					Short: "short1",
+				},
+			},
+		},
+	}
+	uuid.SetRand(rand.New(rand.NewSource(1)))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &InMemory{
+				items: tt.fields.items,
+			}
+			stored, err := s.StoreBatch(ctx, tt.args)
+			assert.NoError(t, err)
+			assert.EqualValues(t, tt.want, stored)
 		})
 	}
 }
