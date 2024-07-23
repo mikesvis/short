@@ -20,6 +20,7 @@ func testConfig() *config.Config {
 		ServerAddress:   "localhost:8080",
 		BaseURL:         "http://localhost:8080",
 		FileStoragePath: "",
+		DatabaseDSN:     "",
 	}
 }
 
@@ -362,8 +363,9 @@ func TestHandler_CreateShortURLBatch(t *testing.T) {
 	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
 	s.StoreBatch(ctx, map[string]domain.URL{
 		"1": {
-			Full:  "http://www.yandex.ru/verylongpath",
-			Short: "short",
+			UserID: "DoomGuy",
+			Full:   "http://www.yandex.ru/verylongpath",
+			Short:  "short",
 		},
 	})
 	type want struct {
@@ -429,6 +431,93 @@ func TestHandler_CreateShortURLBatch(t *testing.T) {
 			}
 
 			assert.Contains(t, string(response), tt.want.body)
+		})
+	}
+}
+
+func TestHandler_GetUserURLs(t *testing.T) {
+	c := testConfig()
+	s := inmemory.NewInMemory()
+	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
+	s.Store(ctx, domain.URL{
+		UserID: "DoomGuy",
+		Full:   "http://www.yandex.ru/verylongpath",
+		Short:  "short",
+	})
+	type want struct {
+		contentType string
+		statusCode  int
+		wantError   bool
+		body        string
+	}
+	type request struct {
+		method string
+		target string
+		ctx    context.Context
+		body   string
+	}
+	tests := []struct {
+		name    string
+		want    want
+		request request
+	}{
+		{
+			name: "Get current user URLs (200)",
+			want: want{
+				contentType: "application/json",
+				statusCode:  http.StatusOK,
+				wantError:   false,
+				body:        `[{"original_url":"http://www.yandex.ru/verylongpath","short_url":"` + string(c.BaseURL) + `/short"}]`,
+			},
+			request: request{
+				method: "POST",
+				target: "/api/user/urls",
+				ctx:    context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy"),
+				body:   ``,
+			},
+		},
+		{
+			name: "Get empty list user URLs (204)",
+			want: want{
+				contentType: "",
+				statusCode:  http.StatusNoContent,
+				wantError:   false,
+				body:        ``,
+			},
+			request: request{
+				method: "POST",
+				target: "/api/user/urls",
+				ctx:    context.WithValue(context.Background(), domain.ContextUserKey, "Heretic"),
+				body:   ``,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(tt.request.ctx)
+			w := httptest.NewRecorder()
+			handler := NewHandler(c, s)
+			handle := http.HandlerFunc(handler.GetUserURLs)
+			handle(w, request)
+			result := w.Result()
+
+			assert.Equal(t, tt.want.statusCode, result.StatusCode)
+
+			response, err := io.ReadAll(result.Body)
+			require.NoError(t, err)
+			err = result.Body.Close()
+			require.NoError(t, err)
+
+			if tt.want.wantError {
+				require.Contains(t, string(response), tt.want.body)
+				return
+			}
+
+			assert.Equal(t, tt.want.contentType, result.Header.Get("Content-Type"))
+
+			if len(tt.want.body) != 0 {
+				assert.JSONEq(t, string(response), tt.want.body)
+			}
 		})
 	}
 }

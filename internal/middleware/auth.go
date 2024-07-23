@@ -59,24 +59,20 @@ func SignIn(next http.Handler) http.Handler {
 		// куки нет или проблема подписи - создаем новую
 		userID := uuid.NewString()
 		expirationTime := time.Now().Add(tokenDuration)
-		tokenString, err := createTokenString(userID, expirationTime)
+		tokenString, err := CreateTokenString(userID, expirationTime)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		http.SetCookie(w, &http.Cookie{
-			Name:    AuthorizationCookieName,
-			Value:   tokenString,
-			Expires: expirationTime,
-		})
+		http.SetCookie(w, CreateAuthCookie(tokenString, expirationTime))
 
 		ctx := setUserIDToContext(r, userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-func createTokenString(userID string, exp time.Time) (string, error) {
+func CreateTokenString(userID string, exp time.Time) (string, error) {
 	claims := &Claims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -90,6 +86,47 @@ func createTokenString(userID string, exp time.Time) (string, error) {
 	}
 
 	return tokenString, err
+}
+
+func CreateAuthCookie(tokenString string, exp time.Time) *http.Cookie {
+	return &http.Cookie{
+		Name:    AuthorizationCookieName,
+		Value:   tokenString,
+		Expires: exp,
+		Path:    "/",
+	}
+}
+
+func Auth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authCookie, err := r.Cookie(AuthorizationCookieName)
+		// проблема с получением куки или ее нет
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		tokenString := authCookie.Value
+		claims := &Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
+			return []byte(secretPass), nil
+		})
+
+		// проблема с расшифровкой или валидностью JWT
+		if err != nil || !token.Valid {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		// UserID есть но он пустой
+		if len(claims.UserID) == 0 {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		ctx := setUserIDToContext(r, claims.UserID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 func setUserIDToContext(r *http.Request, userID string) context.Context {

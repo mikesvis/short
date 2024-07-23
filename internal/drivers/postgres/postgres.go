@@ -217,3 +217,37 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 func (s *Postgres) Close() error {
 	return s.db.Close()
 }
+
+func (s *Postgres) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error) {
+	if len(userID) == 0 {
+		return nil, nil
+	}
+
+	psgItem := postgresDBItem{}
+	rows, err := s.db.QueryxContext(ctx, "SELECT * FROM shorts WHERE user_id = $1", userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := []domain.URL{}
+	for rows.Next() {
+		err := rows.StructScan(&psgItem)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, domain.URL{
+			UserID: psgItem.UserID,
+			Full:   psgItem.FullURL,
+			Short:  psgItem.ShortKey,
+		})
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}

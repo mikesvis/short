@@ -91,3 +91,16 @@ func (s *InMemory) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 
 	return us, nil
 }
+
+func (s *InMemory) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error) {
+	result := []domain.URL{}
+	for _, v := range s.items {
+		if v.UserID != userID {
+			continue
+		}
+
+		result = append(result, v)
+	}
+
+	return result, nil
+}

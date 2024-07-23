@@ -28,7 +28,6 @@ func New() *App {
 	router := server.NewRouter(
 		handler,
 		middleware.RequestResponseLogger(logger),
-		middleware.SignIn,
 		compressor.GZip(
 			[]string{
 				"application/json",

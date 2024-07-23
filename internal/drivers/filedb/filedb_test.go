@@ -246,3 +246,52 @@ func TestFileDB_StoreBatch(t *testing.T) {
 		})
 	}
 }
+
+func TestFileDB_GetUserURLs(t *testing.T) {
+	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
+	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	tmpFile.Close()
+
+	s := &FileDB{
+		filePath: tmpFile.Name(),
+	}
+	uuid.SetRand(rand.New(rand.NewSource(1)))
+	s.Store(ctx, domain.URL{
+		UserID: "DoomGuy",
+		Full:   "http://iddqd.com",
+		Short:  "idkfa",
+	})
+
+	tests := []struct {
+		name string
+		args string
+		want []domain.URL
+	}{
+		{
+			name: "Get current user URLs",
+			args: "DoomGuy",
+			want: []domain.URL{
+				{
+					UserID: "DoomGuy",
+					Full:   "http://iddqd.com",
+					Short:  "idkfa",
+				},
+			},
+		},
+		{
+			name: "Get empty list user URLs",
+			args: "Heretic",
+			want: []domain.URL{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := s.GetUserURLs(ctx, tt.args)
+			require.NoError(t, err)
+
+			assert.EqualValues(t, tt.want, result)
+		})
+	}
+	os.Remove(tmpFile.Name())
+}

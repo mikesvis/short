@@ -185,3 +185,35 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 
 	return us, nil
 }
+
+func (s *FileDB) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error) {
+	file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	result := []domain.URL{}
+
+	decoder := json.NewDecoder(file)
+	for {
+		var i fileDBItem
+		if err := decoder.Decode(&i); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+
+		if i.UserID != userID {
+			continue
+		}
+
+		result = append(result, domain.URL{
+			UserID: i.UserID,
+			Full:   i.OriginalURL,
+			Short:  i.ShortURL,
+		})
+	}
+
+	return result, nil
+}
