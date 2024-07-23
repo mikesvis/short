@@ -77,8 +77,9 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 
 	URL := urlformat.SanitizeURL(string(body))
 	item := domain.URL{
-		Full:  URL,
-		Short: keygen.GetRandkey(keygen.KeyLength),
+		UserID: ctx.Value(domain.ContextUserKey).(string),
+		Full:   URL,
+		Short:  keygen.GetRandkey(keygen.KeyLength),
 	}
 	status := http.StatusConflict
 
@@ -129,8 +130,9 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 
 	URL = urlformat.SanitizeURL(URL)
 	item := domain.URL{
-		Full:  URL,
-		Short: keygen.GetRandkey(keygen.KeyLength),
+		UserID: ctx.Value(domain.ContextUserKey).(string),
+		Full:   URL,
+		Short:  keygen.GetRandkey(keygen.KeyLength),
 	}
 	status := http.StatusConflict
 
@@ -195,8 +197,9 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 	pack := make(map[string]domain.URL)
 	for _, v := range request {
 		pack[string(v.CorrelationID)] = domain.URL{
-			Full:  string(v.OriginalURL),
-			Short: keygen.GetRandkey(keygen.KeyLength),
+			UserID: ctx.Value(domain.ContextUserKey).(string),
+			Full:   string(v.OriginalURL),
+			Short:  keygen.GetRandkey(keygen.KeyLength),
 		}
 	}
 
@@ -218,6 +221,38 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+
+	jsonEncoder := json.NewEncoder(w)
+	jsonEncoder.Encode(response)
+}
+
+func (h *Handler) GetUserURLs(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	// тут умышленно ctx, ctx.Value
+	// 1ый аргумент - контекст, 2ой аргумент - само значение ID пользователя
+	items, err := h.storage.GetUserURLs(ctx, ctx.Value(domain.ContextUserKey).(string))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if len(items) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	var response api.UserResponse
+	for _, v := range items {
+		response = append(response, api.UserResponseItem{
+			ShortURL:    urlformat.FormatURL(string(h.config.BaseURL), v.Short),
+			OriginalURL: v.Full,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 
 	jsonEncoder := json.NewEncoder(w)
 	jsonEncoder.Encode(response)

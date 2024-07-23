@@ -32,7 +32,10 @@ func New() *App {
 			[]string{
 				"application/json",
 				"text/html",
-				"application/x-gzip"}))
+				"application/x-gzip",
+			},
+		),
+	)
 
 	return &App{
 		config,

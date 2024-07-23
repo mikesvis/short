@@ -3,6 +3,7 @@ package inmemory
 import (
 	"context"
 	"math/rand"
+	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
@@ -230,6 +231,72 @@ func TestMemoryMap_StoreBatch(t *testing.T) {
 			stored, err := s.StoreBatch(ctx, tt.args)
 			assert.NoError(t, err)
 			assert.EqualValues(t, tt.want, stored)
+		})
+	}
+}
+
+func TestInMemory_GetUserURLs(t *testing.T) {
+	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
+	type fields struct {
+		items map[domain.ID]domain.URL
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    string
+		want    []domain.URL
+		wantErr bool
+	}{
+		{
+			name: "Get current user URLs",
+			fields: fields{
+				items: map[domain.ID]domain.URL{
+					"1": {
+						UserID: "DoomGuy",
+						Full:   "http://iddqd.com",
+						Short:  "idkfa",
+					},
+				},
+			},
+			args: "DoomGuy",
+			want: []domain.URL{
+				{
+					UserID: "DoomGuy",
+					Full:   "http://iddqd.com",
+					Short:  "idkfa",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Get empty list user URLs",
+			fields: fields{
+				items: map[domain.ID]domain.URL{
+					"1": {
+						UserID: "DoomGuy",
+						Full:   "http://iddqd.com",
+						Short:  "idkfa",
+					},
+				},
+			},
+			args:    "Heretic",
+			want:    []domain.URL{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &InMemory{
+				items: tt.fields.items,
+			}
+			got, err := s.GetUserURLs(ctx, tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("InMemory.GetUserURLs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("InMemory.GetUserURLs() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/mikesvis/short/internal/middleware"
 )
 
 func NewRouter(h *Handler, middlewares ...func(http.Handler) http.Handler) *chi.Mux {
@@ -11,13 +12,15 @@ func NewRouter(h *Handler, middlewares ...func(http.Handler) http.Handler) *chi.
 	r.Use(middlewares...)
 
 	r.Route("/api", func(r chi.Router) {
-		r.Post("/shorten/batch", h.CreateShortURLBatch)
-		r.Post("/shorten", h.CreateShortURLJSON)
+		r.With(middleware.SignIn).Post("/shorten/batch", h.CreateShortURLBatch)
+		r.With(middleware.SignIn).Post("/shorten", h.CreateShortURLJSON)
+		r.With(middleware.Auth).Get("/user/urls", h.GetUserURLs)
 	})
+
 	r.Route("/", func(r chi.Router) {
 		r.Get("/ping", h.Ping)
 		r.Get("/{shortKey}", h.GetFullURL)
-		r.Post("/", h.CreateShortURLText)
+		r.With(middleware.SignIn).Post("/", h.CreateShortURLText)
 		r.Get("/", h.Fail)
 		r.Patch("/", h.Fail)
 		r.Put("/", h.Fail)
