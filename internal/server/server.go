@@ -15,6 +15,7 @@ func NewRouter(h *Handler, middlewares ...func(http.Handler) http.Handler) *chi.
 		r.With(middleware.SignIn).Post("/shorten/batch", h.CreateShortURLBatch)
 		r.With(middleware.SignIn).Post("/shorten", h.CreateShortURLJSON)
 		r.With(middleware.Auth).Get("/user/urls", h.GetUserURLs)
+		r.With(middleware.Auth).Delete("/user/urls", h.DeleteUserURLs)
 	})
 
 	r.Route("/", func(r chi.Router) {

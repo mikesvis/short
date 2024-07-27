@@ -49,6 +49,12 @@ func (h *Handler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if item.Deleted {
+		w.WriteHeader(http.StatusGone)
+
+		return
+	}
+
 	w.Header().Set("Location", item.Full)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
@@ -256,4 +262,26 @@ func (h *Handler) GetUserURLs(w http.ResponseWriter, r *http.Request) {
 
 	jsonEncoder := json.NewEncoder(w)
 	jsonEncoder.Encode(response)
+}
+
+func (h *Handler) DeleteUserURLs(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	var request api.BatchDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// пачки нет
+	if len(request) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+
+		return
+	}
+
+	h.storage.DeleteBatch(ctx, ctx.Value(domain.ContextUserKey).(string), []string(request))
+
+	w.WriteHeader(http.StatusAccepted)
 }

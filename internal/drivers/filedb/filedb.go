@@ -17,6 +17,7 @@ type fileDBItem struct {
 	UserID      string `json:"user_id"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+	Deleted     bool   `json:"is_deleted"`
 }
 
 type FileDB struct {
@@ -93,7 +94,12 @@ func (s *FileDB) findInFile(field, needle string) (domain.URL, error) {
 			continue
 		}
 
-		return domain.URL{Full: i.OriginalURL, Short: i.ShortURL}, nil
+		return domain.URL{
+			UserID:  i.UserID,
+			Full:    i.OriginalURL,
+			Short:   i.ShortURL,
+			Deleted: i.Deleted,
+		}, nil
 	}
 
 	return domain.URL{}, nil
@@ -142,9 +148,10 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 			// восстанавливаем его старый short вместо нового
 			delete(wantToStore, i.OriginalURL)
 			us[k] = domain.URL{
-				UserID: i.UserID,
-				Full:   i.OriginalURL,
-				Short:  i.ShortURL,
+				UserID:  i.UserID,
+				Full:    i.OriginalURL,
+				Short:   i.ShortURL,
+				Deleted: i.Deleted,
 			}
 		}
 
@@ -176,6 +183,7 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 			UserID:      us[v].UserID,
 			ShortURL:    us[v].Short,
 			OriginalURL: us[v].Full,
+			Deleted:     us[v].Deleted,
 		}
 
 		if err := encoder.Encode(&item); err != nil {
@@ -216,4 +224,8 @@ func (s *FileDB) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, 
 	}
 
 	return result, nil
+}
+
+func (s *FileDB) DeleteBatch(ctx context.Context, userID string, pack []string) {
+	// Not implemented
 }

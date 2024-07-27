@@ -56,8 +56,9 @@ func Test_storageURL_Store(t *testing.T) {
 			want: `{
 				"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72",
 				"user_id":"DoomGuy",
-				"short_url": "short",
-				"original_url":"http://www.yandex.ru/verylongpath"
+				"short_url":"short",
+				"original_url":"http://www.yandex.ru/verylongpath",
+				"is_deleted":false
 			}`,
 		},
 	}
@@ -208,7 +209,8 @@ func TestFileDB_StoreBatch(t *testing.T) {
 					"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72",
 					"user_id":"DoomGuy",
 					"short_url": "short1",
-					"original_url":"http://www.yandex.ru/verylongpath1"
+					"original_url":"http://www.yandex.ru/verylongpath1",
+					"is_deleted":false
 				}`,
 			},
 		},
@@ -272,9 +274,10 @@ func TestFileDB_GetUserURLs(t *testing.T) {
 			args: "DoomGuy",
 			want: []domain.URL{
 				{
-					UserID: "DoomGuy",
-					Full:   "http://iddqd.com",
-					Short:  "idkfa",
+					UserID:  "DoomGuy",
+					Full:    "http://iddqd.com",
+					Short:   "idkfa",
+					Deleted: false,
 				},
 			},
 		},

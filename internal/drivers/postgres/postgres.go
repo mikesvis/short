@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	_goerrors "errors"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
@@ -18,6 +19,12 @@ type postgresDBItem struct {
 	UserID   string `db:"user_id"`
 	FullURL  string `db:"full_url"`
 	ShortKey string `db:"short_key"`
+	Deleted  bool   `db:"is_deleted"`
+}
+
+type userUpdateItem struct {
+	UserID   string
+	ShortKey string
 }
 
 type Postgres struct {
@@ -39,7 +46,8 @@ func bootstrapDB(db *sqlx.DB) error {
 			id varchar(36) PRIMARY KEY,
 			user_id varchar(36) NOT NULL,
 			full_url varchar(1000) UNIQUE NOT NULL,
-			short_key varchar(255) UNIQUE NOT NULL
+			short_key varchar(255) UNIQUE NOT NULL,
+			is_deleted boolean NOT NULL DEFAULT false
 		)
 	`
 	_, err := db.Exec(createTableShort)
@@ -90,7 +98,7 @@ func (s *Postgres) GetByFull(ctx context.Context, fullURL string) (domain.URL, e
 	emptyResult := domain.URL{}
 
 	// пробуем получить по полному урлу
-	stmt, err := s.db.PrepareContext(ctx, `SELECT id, full_url, short_key FROM shorts WHERE "full_url" = $1`)
+	stmt, err := s.db.PrepareContext(ctx, `SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE "full_url" = $1`)
 	if err != nil {
 		return emptyResult, err
 	}
@@ -99,7 +107,7 @@ func (s *Postgres) GetByFull(ctx context.Context, fullURL string) (domain.URL, e
 	row := stmt.QueryRowContext(ctx, fullURL)
 
 	var p postgresDBItem
-	err = row.Scan(&p.ID, &p.FullURL, &p.ShortKey)
+	err = row.Scan(&p.ID, &p.UserID, &p.FullURL, &p.ShortKey, &p.Deleted)
 	if _goerrors.Is(err, sql.ErrNoRows) {
 		// нет совпадения по полному урлу, вернем пустой результат
 		return emptyResult, nil
@@ -110,14 +118,14 @@ func (s *Postgres) GetByFull(ctx context.Context, fullURL string) (domain.URL, e
 		return emptyResult, err
 	}
 
-	return domain.URL{Full: p.FullURL, Short: p.ShortKey}, nil
+	return domain.URL{UserID: p.UserID, Full: p.FullURL, Short: p.ShortKey, Deleted: p.Deleted}, nil
 }
 
 func (s *Postgres) GetByShort(ctx context.Context, shortURL string) (domain.URL, error) {
 	emptyResult := domain.URL{}
 
 	// пробуем получить по короткому урлу
-	stmt, err := s.db.PrepareContext(ctx, `SELECT id, full_url, short_key FROM shorts WHERE "short_key" = $1`)
+	stmt, err := s.db.PrepareContext(ctx, `SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE "short_key" = $1`)
 	if err != nil {
 		return emptyResult, err
 	}
@@ -126,7 +134,7 @@ func (s *Postgres) GetByShort(ctx context.Context, shortURL string) (domain.URL,
 	row := stmt.QueryRowContext(ctx, shortURL)
 
 	var p postgresDBItem
-	err = row.Scan(&p.ID, &p.FullURL, &p.ShortKey)
+	err = row.Scan(&p.ID, &p.UserID, &p.FullURL, &p.ShortKey, &p.Deleted)
 	if _goerrors.Is(err, sql.ErrNoRows) {
 		// нет совпадения по короткому урлу, вернем пустой результат
 		return emptyResult, nil
@@ -137,7 +145,7 @@ func (s *Postgres) GetByShort(ctx context.Context, shortURL string) (domain.URL,
 		return emptyResult, err
 	}
 
-	return domain.URL{Full: p.FullURL, Short: p.ShortKey}, nil
+	return domain.URL{UserID: p.UserID, Full: p.FullURL, Short: p.ShortKey, Deleted: p.Deleted}, nil
 }
 
 func (s *Postgres) Ping(ctx context.Context) error {
@@ -154,12 +162,12 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 
 	for k, v := range us {
 		mapper[string(v.Full)] = k
-		fullUrls = append(fullUrls, v.Full)
 		toStore[k] = v
+		fullUrls = append(fullUrls, v.Full)
 	}
 
 	// какое-то неведомое колдунство? Иначе where in не сделать
-	query, args, err := sqlx.In("SELECT id, full_url, short_key FROM shorts WHERE full_url IN (?)", fullUrls)
+	query, args, err := sqlx.In("SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE full_url IN (?)", fullUrls)
 	if err != nil {
 		return nil, err
 	}
@@ -177,8 +185,10 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 		delete(toStore, mapper[string(v.FullURL)])
 		// воскрешаем старые урлы сразу в результативную мапу
 		us[mapper[string(v.FullURL)]] = domain.URL{
-			Full:  v.FullURL,
-			Short: v.ShortKey,
+			UserID:  v.UserID,
+			Full:    v.FullURL,
+			Short:   v.ShortKey,
+			Deleted: v.Deleted,
 		}
 	}
 
@@ -195,6 +205,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 			UserID:   v.UserID,
 			FullURL:  v.Full,
 			ShortKey: v.Short,
+			Deleted:  v.Deleted,
 		})
 	}
 
@@ -223,8 +234,8 @@ func (s *Postgres) GetUserURLs(ctx context.Context, userID string) ([]domain.URL
 		return nil, nil
 	}
 
-	psgItem := postgresDBItem{}
-	rows, err := s.db.QueryxContext(ctx, "SELECT * FROM shorts WHERE user_id = $1", userID)
+	p := postgresDBItem{}
+	rows, err := s.db.QueryxContext(ctx, "SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE user_id = $1", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -232,15 +243,16 @@ func (s *Postgres) GetUserURLs(ctx context.Context, userID string) ([]domain.URL
 
 	result := []domain.URL{}
 	for rows.Next() {
-		err := rows.StructScan(&psgItem)
+		err := rows.StructScan(&p)
 		if err != nil {
 			return nil, err
 		}
 
 		result = append(result, domain.URL{
-			UserID: psgItem.UserID,
-			Full:   psgItem.FullURL,
-			Short:  psgItem.ShortKey,
+			UserID:  p.UserID,
+			Full:    p.FullURL,
+			Short:   p.ShortKey,
+			Deleted: p.Deleted,
 		})
 	}
 
@@ -250,4 +262,137 @@ func (s *Postgres) GetUserURLs(ctx context.Context, userID string) ([]domain.URL
 	}
 
 	return result, nil
+}
+
+// Вот тут у меня масса вопросов к 1-1 к тому насколько это вообще все правильно
+func (s *Postgres) DeleteBatch(ctx context.Context, userID string, pack []string) {
+	inputCh := s.generator(ctx, userID, pack)
+	channels := s.fanOut(ctx, inputCh)
+	resultCh := s.fanIn(ctx, channels...)
+	s.deleteBatchByIds(ctx, resultCh)
+}
+
+// генератор добавляет в канал сообщения
+// в каждом сообщении userID + shortKey
+func (s *Postgres) generator(ctx context.Context, userID string, input []string) chan userUpdateItem {
+	inputCh := make(chan userUpdateItem)
+
+	go func() {
+		defer close(inputCh)
+		for _, data := range input {
+			item := userUpdateItem{
+				UserID:   userID,
+				ShortKey: data,
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case inputCh <- item:
+			}
+		}
+	}()
+
+	return inputCh
+}
+
+// fanOut распределяет сообщения (userID + shortKey) на воркеры
+// пишем результат воркеров в пул каналов
+func (s *Postgres) fanOut(ctx context.Context, inputCh chan userUpdateItem) []chan string {
+	numWorkers := 10
+	channels := make([]chan string, numWorkers)
+
+	for i := 0; i < numWorkers; i++ {
+		validateResCh := s.validate(ctx, inputCh)
+		channels[i] = validateResCh
+	}
+
+	return channels
+}
+
+// Валидируем пользователя и не было ли уже удалено ранее
+func (s *Postgres) validate(ctx context.Context, inputCh <-chan userUpdateItem) chan string {
+	validateRes := make(chan string)
+	go func() {
+		defer close(validateRes)
+
+		for data := range inputCh {
+
+			row := s.db.QueryRowContext(ctx, `SELECT id FROM shorts WHERE "user_id" = $1 AND "short_key" = $2 AND "is_deleted" = false`, data.UserID, data.ShortKey)
+			var id string
+			err := row.Scan(&id)
+			if err != nil {
+				// ошибка - не сможем потом заапдетить
+				// TODO Лог здорового человека с ошибкой
+				continue
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case validateRes <- id:
+			}
+		}
+	}()
+
+	return validateRes
+}
+
+// fanIn объединяем каналы в результирующий канал
+// в сообщениях уже только те ID которые можно update
+func (s *Postgres) fanIn(ctx context.Context, resultChs ...chan string) chan string {
+	finalCh := make(chan string)
+
+	var wg sync.WaitGroup
+
+	for _, ch := range resultChs {
+		chClosure := ch
+
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			for data := range chClosure {
+				select {
+				case <-ctx.Done():
+					return
+				case finalCh <- data:
+				}
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(finalCh)
+	}()
+
+	return finalCh
+}
+
+// берем из канала список id на удаление и выполняем бач update
+func (s *Postgres) deleteBatchByIds(ctx context.Context, inputCh chan string) {
+	var idsToDelete []string
+	for idToDelete := range inputCh {
+		idsToDelete = append(idsToDelete, idToDelete)
+	}
+
+	if len(idsToDelete) == 0 {
+		return
+	}
+
+	// какое-то неведомое колдунство? Иначе where in не сделать
+	query, args, err := sqlx.In(`UPDATE shorts SET "is_deleted" = true WHERE id IN (?)`, idsToDelete)
+	if err != nil {
+		// TODO Лог здорового человека с ошибкой
+		return
+	}
+	query = s.db.Rebind(query)
+
+	_, err = s.db.ExecContext(ctx, query, args...)
+
+	if err != nil {
+		// TODO Лог здорового человека с ошибкой
+		return
+	}
 }

@@ -19,6 +19,7 @@ type Storage interface {
 	GetByFull(ctx context.Context, fullURL string) (domain.URL, error)
 	GetByShort(ctx context.Context, shortURL string) (domain.URL, error)
 	GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error)
+	DeleteBatch(ctx context.Context, userID string, pack []string)
 }
 
 type StoragePinger interface {

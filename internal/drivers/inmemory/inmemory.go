@@ -67,9 +67,10 @@ func (s *InMemory) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 			// восстанавливаем его старый short вместо нового
 			delete(wantToStore, v.Full)
 			us[k] = domain.URL{
-				UserID: v.UserID,
-				Full:   v.Full,
-				Short:  v.Short,
+				UserID:  v.UserID,
+				Full:    v.Full,
+				Short:   v.Short,
+				Deleted: v.Deleted,
 			}
 		}
 
@@ -103,4 +104,8 @@ func (s *InMemory) GetUserURLs(ctx context.Context, userID string) ([]domain.URL
 	}
 
 	return result, nil
+}
+
+func (s *InMemory) DeleteBatch(ctx context.Context, userID string, pack []string) {
+	// Not implemented
 }

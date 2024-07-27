@@ -59,8 +59,9 @@ func Test_storageURL_Store(t *testing.T) {
 			},
 			want: map[domain.ID]domain.URL{
 				"52fdfc07-2182-454f-963f-5f0f9a621d72": {
-					Full:  "http://www.yandex.ru/verylongpath",
-					Short: "http://localhost/short",
+					Full:    "http://www.yandex.ru/verylongpath",
+					Short:   "http://localhost/short",
+					Deleted: false,
 				},
 			},
 		},
@@ -105,8 +106,9 @@ func Test_storageURL_GetByFull(t *testing.T) {
 			},
 			args: "http://www.yandex.ru/verylongpath1",
 			want: domain.URL{
-				Full:  "http://www.yandex.ru/verylongpath1",
-				Short: "http://localhost/short1",
+				Full:    "http://www.yandex.ru/verylongpath1",
+				Short:   "http://localhost/short1",
+				Deleted: false,
 			},
 		}, {
 			name: "Is not found by full",
@@ -162,8 +164,9 @@ func Test_storageURL_GetByShort(t *testing.T) {
 			},
 			args: "http://localhost/short1",
 			want: domain.URL{
-				Full:  "http://www.yandex.ru/verylongpath1",
-				Short: "http://localhost/short1",
+				Full:    "http://www.yandex.ru/verylongpath1",
+				Short:   "http://localhost/short1",
+				Deleted: false,
 			},
 		}, {
 			name: "Is not found by short",
@@ -216,8 +219,9 @@ func TestMemoryMap_StoreBatch(t *testing.T) {
 			},
 			want: map[string]domain.URL{
 				"1": {
-					Full:  "http://www.yandex.ru/verylongpath1",
-					Short: "short1",
+					Full:    "http://www.yandex.ru/verylongpath1",
+					Short:   "short1",
+					Deleted: false,
 				},
 			},
 		},
@@ -261,9 +265,10 @@ func TestInMemory_GetUserURLs(t *testing.T) {
 			args: "DoomGuy",
 			want: []domain.URL{
 				{
-					UserID: "DoomGuy",
-					Full:   "http://iddqd.com",
-					Short:  "idkfa",
+					UserID:  "DoomGuy",
+					Full:    "http://iddqd.com",
+					Short:   "idkfa",
+					Deleted: false,
 				},
 			},
 			wantErr: false,
