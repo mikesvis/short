@@ -241,7 +241,7 @@ func (s *Postgres) GetUserURLs(ctx context.Context, userID string) ([]domain.URL
 	}
 	defer rows.Close()
 
-	result := []domain.URL{}
+	result := make([]domain.URL, 0, 20)
 	for rows.Next() {
 		err := rows.StructScan(&p)
 		if err != nil {

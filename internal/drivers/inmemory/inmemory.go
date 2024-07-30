@@ -94,7 +94,7 @@ func (s *InMemory) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 }
 
 func (s *InMemory) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error) {
-	result := []domain.URL{}
+	result := make([]domain.URL, 0, 20)
 	for _, v := range s.items {
 		if v.UserID != userID {
 			continue

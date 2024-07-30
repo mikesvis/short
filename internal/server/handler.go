@@ -211,14 +211,13 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// domain.URL.Short в процессе сохранения поменяем на старый если такой domain.URL.Full уже есть
-	// цель: сделать получение/вычисление/сохранение в одну транзакцию
 	stored, err := h.storage.StoreBatch(ctx, pack)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	var response api.BatchResponse
+	response := make(api.BatchResponse, 0, len(stored))
 	for k, v := range stored {
 		// не понимаю что мы тут сократили, по моему с BatchResponseItem было лучше (но исправил по замечанию ревью)
 		response = append(response, struct {
@@ -254,7 +253,7 @@ func (h *Handler) GetUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var response api.UserResponse
+	response := make(api.UserResponse, 0, len(items))
 	for _, v := range items {
 		// не понимаю что мы тут сократили, по моему с UserResponseItem было лучше (но исправил по замечанию ревью)
 		response = append(response, struct {

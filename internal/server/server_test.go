@@ -57,6 +57,11 @@ func generateTestCookiesByUser(UserID string) []*http.Cookie {
 	startTokenString, _ := jwt.CreateTokenString(UserID, time.Now().Add(5*time.Minute))
 	startCookie := middleware.CreateAuthCookie(startTokenString, time.Now().Add(5*time.Minute))
 	cookies := []*http.Cookie{}
+	// по строчке выше был комментарий: "Нет смысла делать указатель, так как слайс - это и так указатель"
+	// вся проблема в том что а пакете http так поределен интерфейс SetCookies(u *url.URL, cookies []*Cookie)
+	// и любые отличия от этого типа он не пропускает из-за ошибки :(
+
+	// UPDATE: въехал! это не указатель на слайс, это слайс указателей :)
 	cookies = append(cookies, startCookie)
 	return cookies
 }

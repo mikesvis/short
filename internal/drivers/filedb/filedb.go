@@ -201,7 +201,7 @@ func (s *FileDB) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, 
 	}
 	defer file.Close()
 
-	result := []domain.URL{}
+	result := make([]domain.URL, 0, 20)
 
 	decoder := json.NewDecoder(file)
 	for {
