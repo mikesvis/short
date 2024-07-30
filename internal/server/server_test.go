@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mikesvis/short/internal/config"
+	"github.com/mikesvis/short/internal/jwt"
 	"github.com/mikesvis/short/internal/logger"
 	"github.com/mikesvis/short/internal/middleware"
 	"github.com/mikesvis/short/internal/storage"
@@ -53,7 +54,7 @@ func testServer() *httptest.Server {
 
 // я немного очумел пока это сделал
 func generateTestCookiesByUser(UserID string) []*http.Cookie {
-	startTokenString, _ := middleware.CreateTokenString(UserID, time.Now().Add(5*time.Minute))
+	startTokenString, _ := jwt.CreateTokenString(UserID, time.Now().Add(5*time.Minute))
 	startCookie := middleware.CreateAuthCookie(startTokenString, time.Now().Add(5*time.Minute))
 	cookies := []*http.Cookie{}
 	cookies = append(cookies, startCookie)

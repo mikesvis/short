@@ -1,29 +1,22 @@
 package middleware
 
 import (
-	"context"
-	"errors"
+	_context "context"
+	_errors "errors"
 	"net/http"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	_jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/context"
+	"github.com/mikesvis/short/internal/errors"
+	"github.com/mikesvis/short/internal/jwt"
 )
-
-const secretPass = "mySecretPass"
-const AuthorizationCookieName = "Authorization-JWT"
-const tokenDuration = time.Hour * 24 * 30
-
-type Claims struct {
-	UserID string `json:"userId"`
-	jwt.RegisteredClaims
-}
 
 func SignIn(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authCookie, err := r.Cookie(AuthorizationCookieName)
-		if err != nil && !errors.Is(err, http.ErrNoCookie) {
+		authCookie, err := r.Cookie(jwt.AuthorizationCookieName)
+		if err != nil && !_errors.Is(err, http.ErrNoCookie) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -31,26 +24,24 @@ func SignIn(next http.Handler) http.Handler {
 		// кука есть
 		if err == nil {
 			tokenString := authCookie.Value
-			claims := &Claims{}
-			token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
-				return []byte(secretPass), nil
-			})
 
-			// все хорошо в куке, не трогаем
-			if err == nil && token.Valid {
-				// пустой UserID в токене (по заданию)
-				if len(claims.UserID) == 0 {
-					w.WriteHeader(http.StatusUnauthorized)
-					return
-				}
+			userID, err := jwt.GetUserIDFromTokenString(tokenString)
 
-				ctx := setUserIDToContext(r, claims.UserID)
+			// все ОК, пишем в контекст userID
+			if err == nil {
+				ctx := setUserIDToContext(r, userID)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 
-			// с кукой что-то не так, но это не проблема подписи
-			if err != nil && !errors.Is(err, jwt.ErrSignatureInvalid) {
+			// если пустой userID: StatusUnauthorized
+			if _errors.Is(err, errors.ErrEmptyUserID) {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			// с токеном проблем, но не проблема подписи StatusInternalServerError
+			if !_errors.Is(err, _jwt.ErrSignatureInvalid) {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -58,8 +49,8 @@ func SignIn(next http.Handler) http.Handler {
 
 		// куки нет или проблема подписи - создаем новую
 		userID := uuid.NewString()
-		expirationTime := time.Now().Add(tokenDuration)
-		tokenString, err := CreateTokenString(userID, expirationTime)
+		expirationTime := time.Now().Add(jwt.TokenDuration)
+		tokenString, err := jwt.CreateTokenString(userID, expirationTime)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -72,25 +63,9 @@ func SignIn(next http.Handler) http.Handler {
 	})
 }
 
-func CreateTokenString(userID string, exp time.Time) (string, error) {
-	claims := &Claims{
-		UserID: userID,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(exp),
-		},
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(secretPass))
-	if err != nil {
-		return "", err
-	}
-
-	return tokenString, err
-}
-
 func CreateAuthCookie(tokenString string, exp time.Time) *http.Cookie {
 	return &http.Cookie{
-		Name:    AuthorizationCookieName,
+		Name:    jwt.AuthorizationCookieName,
 		Value:   tokenString,
 		Expires: exp,
 		Path:    "/",
@@ -99,7 +74,7 @@ func CreateAuthCookie(tokenString string, exp time.Time) *http.Cookie {
 
 func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authCookie, err := r.Cookie(AuthorizationCookieName)
+		authCookie, err := r.Cookie(jwt.AuthorizationCookieName)
 		// проблема с получением куки или ее нет
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -107,28 +82,31 @@ func Auth(next http.Handler) http.Handler {
 		}
 
 		tokenString := authCookie.Value
-		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
-			return []byte(secretPass), nil
-		})
+		userID, err := jwt.GetUserIDFromTokenString(tokenString)
 
 		// проблема с расшифровкой или валидностью JWT
-		if err != nil || !token.Valid {
+		if err != nil && _errors.Is(err, errors.ErrInvalidToken) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		// UserID есть но он пустой
-		if len(claims.UserID) == 0 {
+		if err != nil && _errors.Is(err, errors.ErrEmptyUserID) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		ctx := setUserIDToContext(r, claims.UserID)
+		// какая-то другая проблема с токеном
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		ctx := setUserIDToContext(r, userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-func setUserIDToContext(r *http.Request, userID string) context.Context {
-	return context.WithValue(r.Context(), domain.ContextUserKey, userID)
+func setUserIDToContext(r *http.Request, userID string) _context.Context {
+	return _context.WithValue(r.Context(), context.ContextUserKey, userID)
 }

@@ -2,12 +2,13 @@ package filedb
 
 import (
 	"bufio"
-	"context"
+	_context "context"
 	"math/rand"
 	"os"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/mikesvis/short/internal/context"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,7 +40,7 @@ func TestNewStorageURL(t *testing.T) {
 }
 
 func Test_storageURL_Store(t *testing.T) {
-	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
+	ctx := _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy")
 
 	tests := []struct {
 		name string
@@ -106,7 +107,7 @@ func createAndSeedTestStorage(t *testing.T) string {
 }
 
 func Test_storageURL_GetByFull(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.Background()
 
 	tests := []struct {
 		name string
@@ -141,7 +142,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 }
 
 func Test_storageURL_GetByShort(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.Background()
 
 	tests := []struct {
 		name string
@@ -176,7 +177,7 @@ func Test_storageURL_GetByShort(t *testing.T) {
 }
 
 func TestFileDB_StoreBatch(t *testing.T) {
-	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
+	ctx := _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy")
 
 	type want struct {
 		stored        map[string]domain.URL
@@ -250,7 +251,7 @@ func TestFileDB_StoreBatch(t *testing.T) {
 }
 
 func TestFileDB_GetUserURLs(t *testing.T) {
-	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
+	ctx := _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy")
 	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
 	tmpFile.Close()
 

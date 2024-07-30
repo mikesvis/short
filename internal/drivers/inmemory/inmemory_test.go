@@ -1,12 +1,13 @@
 package inmemory
 
 import (
-	"context"
+	_context "context"
 	"math/rand"
 	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/mikesvis/short/internal/context"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/stretchr/testify/assert"
 )
@@ -37,7 +38,7 @@ func TestNewStorageURL(t *testing.T) {
 }
 
 func Test_storageURL_Store(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.Background()
 
 	type fields struct {
 		items map[domain.ID]domain.URL
@@ -79,7 +80,7 @@ func Test_storageURL_Store(t *testing.T) {
 }
 
 func Test_storageURL_GetByFull(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.Background()
 
 	type fields struct {
 		items map[domain.ID]domain.URL
@@ -137,7 +138,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 }
 
 func Test_storageURL_GetByShort(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.Background()
 
 	type fields struct {
 		items map[domain.ID]domain.URL
@@ -195,7 +196,7 @@ func Test_storageURL_GetByShort(t *testing.T) {
 }
 
 func TestMemoryMap_StoreBatch(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.Background()
 
 	type fields struct {
 		items map[domain.ID]domain.URL
@@ -240,7 +241,7 @@ func TestMemoryMap_StoreBatch(t *testing.T) {
 }
 
 func TestInMemory_GetUserURLs(t *testing.T) {
-	ctx := context.WithValue(context.Background(), domain.ContextUserKey, "DoomGuy")
+	ctx := _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy")
 	type fields struct {
 		items map[domain.ID]domain.URL
 	}

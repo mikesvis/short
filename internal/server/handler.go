@@ -1,7 +1,7 @@
 package server
 
 import (
-	"context"
+	_context "context"
 	"encoding/json"
 	_goerrors "errors"
 	"fmt"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/mikesvis/short/internal/api"
 	"github.com/mikesvis/short/internal/config"
+	"github.com/mikesvis/short/internal/context"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/errors"
 	"github.com/mikesvis/short/internal/keygen"
@@ -31,7 +32,7 @@ func NewHandler(config *config.Config, storage storage.Storage) *Handler {
 // Получение короткого URL из запроса
 // Поиск в условной "базе" полного URL по сокращенному
 func (h *Handler) GetFullURL(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(r.Context())
+	ctx, cancel := _context.WithCancel(r.Context())
 	defer cancel()
 
 	shortKey := strings.TrimLeft(r.RequestURI, "/")
@@ -64,7 +65,7 @@ func (h *Handler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 // Проверка на валидность URL
 // Запись сокращенного Url в условную "базу" если нет такого ключа
 func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(r.Context())
+	ctx, cancel := _context.WithCancel(r.Context())
 	defer cancel()
 
 	body, err := io.ReadAll(r.Body)
@@ -83,7 +84,7 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 
 	URL := urlformat.SanitizeURL(string(body))
 	item := domain.URL{
-		UserID: ctx.Value(domain.ContextUserKey).(string),
+		UserID: ctx.Value(context.ContextUserKey).(string),
 		Full:   URL,
 		Short:  keygen.GetRandkey(keygen.KeyLength),
 	}
@@ -117,7 +118,7 @@ func (h *Handler) Fail(w http.ResponseWriter, r *http.Request) {
 // Проверка на валидность URL
 // Запись сокращенного URL в условную "базу" если нет такого ключа
 func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(r.Context())
+	ctx, cancel := _context.WithCancel(r.Context())
 	defer cancel()
 
 	var request api.Request
@@ -136,7 +137,7 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 
 	URL = urlformat.SanitizeURL(URL)
 	item := domain.URL{
-		UserID: ctx.Value(domain.ContextUserKey).(string),
+		UserID: ctx.Value(context.ContextUserKey).(string),
 		Full:   URL,
 		Short:  keygen.GetRandkey(keygen.KeyLength),
 	}
@@ -163,7 +164,7 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 
 // Пинг хранилки
 func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(r.Context())
+	ctx, cancel := _context.WithCancel(r.Context())
 	defer cancel()
 
 	if _, ok := h.storage.(storage.StoragePinger); !ok {
@@ -190,7 +191,7 @@ func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
 // Проверка на валидность URL
 // Запись сокращенного URL в условную "базу" если нет такого ключа
 func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(r.Context())
+	ctx, cancel := _context.WithCancel(r.Context())
 	defer cancel()
 
 	var request api.BatchRequest
@@ -203,7 +204,7 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 	pack := make(map[string]domain.URL)
 	for _, v := range request {
 		pack[string(v.CorrelationID)] = domain.URL{
-			UserID: ctx.Value(domain.ContextUserKey).(string),
+			UserID: ctx.Value(context.ContextUserKey).(string),
 			Full:   string(v.OriginalURL),
 			Short:  keygen.GetRandkey(keygen.KeyLength),
 		}
@@ -233,12 +234,12 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetUserURLs(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(r.Context())
+	ctx, cancel := _context.WithCancel(r.Context())
 	defer cancel()
 
 	// тут умышленно ctx, ctx.Value
 	// 1ый аргумент - контекст, 2ой аргумент - само значение ID пользователя
-	items, err := h.storage.GetUserURLs(ctx, ctx.Value(domain.ContextUserKey).(string))
+	items, err := h.storage.GetUserURLs(ctx, ctx.Value(context.ContextUserKey).(string))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -265,7 +266,7 @@ func (h *Handler) GetUserURLs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteUserURLs(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(r.Context())
+	ctx, cancel := _context.WithCancel(r.Context())
 	defer cancel()
 
 	var request api.BatchDeleteRequest
@@ -281,7 +282,7 @@ func (h *Handler) DeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.storage.DeleteBatch(ctx, ctx.Value(domain.ContextUserKey).(string), []string(request))
+	h.storage.DeleteBatch(ctx, ctx.Value(context.ContextUserKey).(string), []string(request))
 
 	w.WriteHeader(http.StatusAccepted)
 }
