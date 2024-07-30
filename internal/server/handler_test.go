@@ -102,7 +102,7 @@ func TestGetFullURL(t *testing.T) {
 func TestCreateShortURLText(t *testing.T) {
 	c := testConfig()
 	s := inmemory.NewInMemory()
-	ctx := _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy")
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.Store(ctx, domain.URL{
 		Full:   "http://www.yandex.ru/verylongpath",
 		UserID: "Doomguy",
@@ -271,8 +271,8 @@ func TestFail(t *testing.T) {
 func TestCreateShortURLJSON(t *testing.T) {
 	c := testConfig()
 	s := inmemory.NewInMemory()
-	ctx := _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy")
-	s.Store(_context.WithValue(ctx, context.ContextUserKey, "DoomGuy"), domain.URL{
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+	s.Store(_context.WithValue(ctx, context.UserIDContextKey, "DoomGuy"), domain.URL{
 		UserID: "DoomGuy",
 		Full:   "http://www.yandex.ru/verylongpath",
 		Short:  "short",
@@ -361,7 +361,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 func TestHandler_CreateShortURLBatch(t *testing.T) {
 	c := testConfig()
 	s := inmemory.NewInMemory()
-	ctx := _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy")
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.StoreBatch(ctx, map[string]domain.URL{
 		"1": {
 			UserID: "DoomGuy",
@@ -439,7 +439,7 @@ func TestHandler_CreateShortURLBatch(t *testing.T) {
 func TestHandler_GetUserURLs(t *testing.T) {
 	c := testConfig()
 	s := inmemory.NewInMemory()
-	ctx := _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy")
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.Store(ctx, domain.URL{
 		UserID: "DoomGuy",
 		Full:   "http://www.yandex.ru/verylongpath",
@@ -473,7 +473,7 @@ func TestHandler_GetUserURLs(t *testing.T) {
 			request: request{
 				method: "POST",
 				target: "/api/user/urls",
-				ctx:    _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy"),
+				ctx:    _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"),
 				body:   ``,
 			},
 		},
@@ -488,7 +488,7 @@ func TestHandler_GetUserURLs(t *testing.T) {
 			request: request{
 				method: "POST",
 				target: "/api/user/urls",
-				ctx:    _context.WithValue(_context.Background(), context.ContextUserKey, "Heretic"),
+				ctx:    _context.WithValue(_context.Background(), context.UserIDContextKey, "Heretic"),
 				body:   ``,
 			},
 		},

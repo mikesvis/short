@@ -40,7 +40,7 @@ func TestNewStorageURL(t *testing.T) {
 }
 
 func Test_storageURL_Store(t *testing.T) {
-	ctx := _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy")
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 
 	tests := []struct {
 		name string
@@ -177,7 +177,7 @@ func Test_storageURL_GetByShort(t *testing.T) {
 }
 
 func TestFileDB_StoreBatch(t *testing.T) {
-	ctx := _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy")
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 
 	type want struct {
 		stored        map[string]domain.URL
@@ -251,7 +251,7 @@ func TestFileDB_StoreBatch(t *testing.T) {
 }
 
 func TestFileDB_GetUserURLs(t *testing.T) {
-	ctx := _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy")
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
 	tmpFile.Close()
 

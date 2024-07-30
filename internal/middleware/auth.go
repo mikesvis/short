@@ -108,5 +108,5 @@ func Auth(next http.Handler) http.Handler {
 }
 
 func setUserIDToContext(r *http.Request, userID string) _context.Context {
-	return _context.WithValue(r.Context(), context.ContextUserKey, userID)
+	return _context.WithValue(r.Context(), context.UserIDContextKey, userID)
 }

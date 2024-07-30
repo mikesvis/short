@@ -241,7 +241,7 @@ func TestMemoryMap_StoreBatch(t *testing.T) {
 }
 
 func TestInMemory_GetUserURLs(t *testing.T) {
-	ctx := _context.WithValue(_context.Background(), context.ContextUserKey, "DoomGuy")
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	type fields struct {
 		items map[domain.ID]domain.URL
 	}

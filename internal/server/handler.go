@@ -84,7 +84,7 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 
 	URL := urlformat.SanitizeURL(string(body))
 	item := domain.URL{
-		UserID: ctx.Value(context.ContextUserKey).(string),
+		UserID: ctx.Value(context.UserIDContextKey).(string),
 		Full:   URL,
 		Short:  keygen.GetRandkey(keygen.KeyLength),
 	}
@@ -137,7 +137,7 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 
 	URL = urlformat.SanitizeURL(URL)
 	item := domain.URL{
-		UserID: ctx.Value(context.ContextUserKey).(string),
+		UserID: ctx.Value(context.UserIDContextKey).(string),
 		Full:   URL,
 		Short:  keygen.GetRandkey(keygen.KeyLength),
 	}
@@ -204,7 +204,7 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 	pack := make(map[string]domain.URL)
 	for _, v := range request {
 		pack[string(v.CorrelationID)] = domain.URL{
-			UserID: ctx.Value(context.ContextUserKey).(string),
+			UserID: ctx.Value(context.UserIDContextKey).(string),
 			Full:   string(v.OriginalURL),
 			Short:  keygen.GetRandkey(keygen.KeyLength),
 		}
@@ -220,7 +220,11 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 
 	var response api.BatchResponse
 	for k, v := range stored {
-		response = append(response, api.BatchResponseItem{
+		// не понимаю что мы тут сократили, по моему с BatchResponseItem было лучше (но исправил по замечанию ревью)
+		response = append(response, struct {
+			CorrelationID string `json:"correlation_id"`
+			ShortURL      string `json:"short_url"`
+		}{
 			CorrelationID: k,
 			ShortURL:      urlformat.FormatURL(string(h.config.BaseURL), v.Short),
 		})
@@ -239,7 +243,7 @@ func (h *Handler) GetUserURLs(w http.ResponseWriter, r *http.Request) {
 
 	// тут умышленно ctx, ctx.Value
 	// 1ый аргумент - контекст, 2ой аргумент - само значение ID пользователя
-	items, err := h.storage.GetUserURLs(ctx, ctx.Value(context.ContextUserKey).(string))
+	items, err := h.storage.GetUserURLs(ctx, ctx.Value(context.UserIDContextKey).(string))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -252,7 +256,11 @@ func (h *Handler) GetUserURLs(w http.ResponseWriter, r *http.Request) {
 
 	var response api.UserResponse
 	for _, v := range items {
-		response = append(response, api.UserResponseItem{
+		// не понимаю что мы тут сократили, по моему с UserResponseItem было лучше (но исправил по замечанию ревью)
+		response = append(response, struct {
+			ShortURL    string `json:"short_url"`
+			OriginalURL string `json:"original_url"`
+		}{
 			ShortURL:    urlformat.FormatURL(string(h.config.BaseURL), v.Short),
 			OriginalURL: v.Full,
 		})
@@ -282,7 +290,7 @@ func (h *Handler) DeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.storage.DeleteBatch(ctx, ctx.Value(context.ContextUserKey).(string), []string(request))
+	h.storage.DeleteBatch(ctx, ctx.Value(context.UserIDContextKey).(string), []string(request))
 
 	w.WriteHeader(http.StatusAccepted)
 }

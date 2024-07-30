@@ -4,4 +4,4 @@ package context
 // пока не придумал куда это приткнуть, пусть тут полежит
 type ContextKey string
 
-const ContextUserKey ContextKey = "UserID"
+const UserIDContextKey ContextKey = "UserID"
