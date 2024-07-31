@@ -280,7 +280,7 @@ func (s *Postgres) DeleteBatch(ctx context.Context, userID string, pack []string
 // генератор добавляет в канал сообщения
 // в каждом сообщении userID + shortKey
 func (s *Postgres) generator(ctx context.Context, userID string, input []string) chan userUpdateItem {
-	inputCh := make(chan userUpdateItem)
+	inputCh := make(chan userUpdateItem, 10)
 
 	go func() {
 		defer close(inputCh)
@@ -316,7 +316,7 @@ func (s *Postgres) fanOut(ctx context.Context, inputCh chan userUpdateItem) []ch
 
 // Валидируем пользователя и не было ли уже удалено ранее
 func (s *Postgres) validate(ctx context.Context, inputCh <-chan userUpdateItem) chan string {
-	validateRes := make(chan string)
+	validateRes := make(chan string, 1)
 	go func() {
 		defer close(validateRes)
 
@@ -345,7 +345,7 @@ func (s *Postgres) validate(ctx context.Context, inputCh <-chan userUpdateItem) 
 // fanIn объединяем каналы в результирующий канал
 // в сообщениях уже только те ID которые можно update
 func (s *Postgres) fanIn(ctx context.Context, resultChs ...chan string) chan string {
-	finalCh := make(chan string)
+	finalCh := make(chan string, 10)
 
 	var wg sync.WaitGroup
 
