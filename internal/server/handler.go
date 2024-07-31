@@ -3,10 +3,11 @@ package server
 import (
 	_context "context"
 	"encoding/json"
-	_goerrors "errors"
+	_errors "errors"
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/mikesvis/short/internal/api"
@@ -91,7 +92,7 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 	status := http.StatusConflict
 
 	item, err = h.storage.Store(ctx, item)
-	if err != nil && !_goerrors.Is(err, errors.ErrConflict) {
+	if err != nil && !_errors.Is(err, errors.ErrConflict) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
@@ -108,7 +109,7 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 
 // Обработка всего остального
 func (h *Handler) Fail(w http.ResponseWriter, r *http.Request) {
-	err := _goerrors.New("bad protocol")
+	err := _errors.New("bad protocol")
 	http.Error(w, err.Error(), http.StatusBadRequest)
 }
 
@@ -144,7 +145,7 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 	status := http.StatusConflict
 
 	item, err = h.storage.Store(ctx, item)
-	if err != nil && !_goerrors.Is(err, errors.ErrConflict) {
+	if err != nil && !_errors.Is(err, errors.ErrConflict) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
@@ -276,6 +277,12 @@ func (h *Handler) DeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := _context.WithCancel(r.Context())
 	defer cancel()
 
+	if _, isDeleter := h.storage.(storage.StorageDeleter); !isDeleter {
+		http.Error(w, fmt.Sprintf(`Batch delete is not supported for storage of type %s`, reflect.TypeOf(h.storage).String()), http.StatusInternalServerError)
+
+		return
+	}
+
 	var request api.BatchDeleteRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -289,7 +296,7 @@ func (h *Handler) DeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.storage.DeleteBatch(ctx, ctx.Value(context.UserIDContextKey).(string), []string(request))
+	h.storage.(storage.StorageDeleter).DeleteBatch(ctx, ctx.Value(context.UserIDContextKey).(string), []string(request))
 
 	w.WriteHeader(http.StatusAccepted)
 }

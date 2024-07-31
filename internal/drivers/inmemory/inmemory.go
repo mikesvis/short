@@ -105,7 +105,3 @@ func (s *InMemory) GetUserURLs(ctx context.Context, userID string) ([]domain.URL
 
 	return result, nil
 }
-
-func (s *InMemory) DeleteBatch(ctx context.Context, userID string, pack []string) {
-	// Not implemented
-}

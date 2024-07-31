@@ -47,7 +47,6 @@ func New() *App {
 
 func (a *App) Run() {
 	a.logger.Infow("Config initialized", "config", a.config)
-	// хоспади какие костыли ради разных хранилищ
 	if _, isCloser := a.storage.(storage.StorageCloser); isCloser {
 		defer a.storage.(storage.StorageCloser).Close()
 	}

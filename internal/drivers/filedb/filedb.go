@@ -225,7 +225,3 @@ func (s *FileDB) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, 
 
 	return result, nil
 }
-
-func (s *FileDB) DeleteBatch(ctx context.Context, userID string, pack []string) {
-	// Not implemented
-}
