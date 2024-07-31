@@ -234,13 +234,18 @@ func (s *Postgres) GetUserURLs(ctx context.Context, userID string) ([]domain.URL
 		return nil, nil
 	}
 
-	p := postgresDBItem{}
 	rows, err := s.db.QueryxContext(ctx, "SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE user_id = $1", userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	return fetchUserURLs(rows)
+}
+
+// не вижу особого смысла так разбивать, но раз был комментарий то вынесу вот это
+func fetchUserURLs(rows *sqlx.Rows) ([]domain.URL, error) {
+	p := postgresDBItem{}
 	result := make([]domain.URL, 0, 20)
 	for rows.Next() {
 		err := rows.StructScan(&p)
@@ -256,7 +261,7 @@ func (s *Postgres) GetUserURLs(ctx context.Context, userID string) ([]domain.URL
 		})
 	}
 
-	err = rows.Err()
+	err := rows.Err()
 	if err != nil {
 		return nil, err
 	}
