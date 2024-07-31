@@ -6,15 +6,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/errors"
+	"go.uber.org/zap"
 )
 
 type InMemory struct {
-	items map[domain.ID]domain.URL
+	items  map[domain.ID]domain.URL
+	logger *zap.SugaredLogger
 }
 
-func NewInMemory() *InMemory {
+func NewInMemory(logger *zap.SugaredLogger) *InMemory {
 	items := make(map[domain.ID]domain.URL)
-	return &InMemory{items: items}
+	return &InMemory{items, logger}
 }
 
 func (s *InMemory) Store(ctx context.Context, u domain.URL) (domain.URL, error) {

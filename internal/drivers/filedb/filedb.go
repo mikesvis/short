@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/errors"
+	"go.uber.org/zap"
 )
 
 type fileDBItem struct {
@@ -21,13 +22,12 @@ type fileDBItem struct {
 }
 
 type FileDB struct {
-	filePath string
+	fileName string
+	logger   *zap.SugaredLogger
 }
 
-func NewFileDB(fileName string) *FileDB {
-	s := &FileDB{
-		filePath: fileName,
-	}
+func NewFileDB(fileName string, logger *zap.SugaredLogger) *FileDB {
+	s := &FileDB{fileName, logger}
 
 	return s
 }
@@ -43,7 +43,7 @@ func (s *FileDB) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
 		return old, errors.ErrConflict
 	}
 
-	file, err := os.OpenFile(s.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	file, err := os.OpenFile(s.fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return emptyResult, err
 	}
@@ -74,7 +74,7 @@ func (s *FileDB) GetByShort(ctx context.Context, shortURL string) (domain.URL, e
 }
 
 func (s *FileDB) findInFile(field, needle string) (domain.URL, error) {
-	file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(s.fileName, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return domain.URL{}, err
 	}
@@ -112,7 +112,7 @@ func getField(i *fileDBItem, field string) string {
 }
 
 func (s *FileDB) Ping(ctx context.Context) error {
-	_, error := os.Stat(s.filePath)
+	_, error := os.Stat(s.fileName)
 
 	return error
 }
@@ -126,7 +126,7 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 	}
 
 	// для начала найдем совпадения по урлу, которые были сохранены ранее
-	file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(s.fileName, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 	}
 
 	// будем сохранять только те елементы, которых нет
-	file, err = os.OpenFile(s.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	file, err = os.OpenFile(s.fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 }
 
 func (s *FileDB) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error) {
-	file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(s.fileName, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, err
 	}

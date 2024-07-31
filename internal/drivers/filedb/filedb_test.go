@@ -10,11 +10,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/mikesvis/short/internal/context"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewStorageURL(t *testing.T) {
+	l := logger.NewLogger()
 	type args struct {
 		filePath string
 	}
@@ -33,7 +35,7 @@ func TestNewStorageURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			newStorage := NewFileDB(tt.args.filePath)
+			newStorage := NewFileDB(tt.args.filePath, l)
 			assert.IsType(t, tt.want, newStorage)
 		})
 	}
@@ -73,14 +75,14 @@ func Test_storageURL_Store(t *testing.T) {
 
 			// Using temp file in storage
 			s := &FileDB{
-				filePath: tmpFile.Name(),
+				fileName: tmpFile.Name(),
 			}
 
 			// Storing
 			s.Store(ctx, tt.args)
 
 			// Reading temp file
-			file, err := os.OpenFile(s.filePath, os.O_RDONLY, 0666)
+			file, err := os.OpenFile(s.fileName, os.O_RDONLY, 0666)
 			require.Nil(t, err)
 			defer file.Close()
 			scanner := bufio.NewScanner(file)
@@ -131,7 +133,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpFile := createAndSeedTestStorage(t)
 			s := &FileDB{
-				filePath: tmpFile,
+				fileName: tmpFile,
 			}
 			item, _ := s.GetByFull(ctx, tt.args)
 			assert.IsType(t, tt.want, item)
@@ -166,7 +168,7 @@ func Test_storageURL_GetByShort(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpFile := createAndSeedTestStorage(t)
 			s := &FileDB{
-				filePath: tmpFile,
+				fileName: tmpFile,
 			}
 			item, _ := s.GetByShort(ctx, tt.args)
 			assert.IsType(t, tt.want, item)
@@ -226,7 +228,7 @@ func TestFileDB_StoreBatch(t *testing.T) {
 
 			// Using temp file in storage
 			s := &FileDB{
-				filePath: tmpFile.Name(),
+				fileName: tmpFile.Name(),
 			}
 
 			// Storing
@@ -234,7 +236,7 @@ func TestFileDB_StoreBatch(t *testing.T) {
 			require.NoError(t, err)
 
 			// Reading temp file
-			file, err := os.OpenFile(s.filePath, os.O_RDONLY, 0666)
+			file, err := os.OpenFile(s.fileName, os.O_RDONLY, 0666)
 			require.Nil(t, err)
 			defer file.Close()
 			scanner := bufio.NewScanner(file)
@@ -256,7 +258,7 @@ func TestFileDB_GetUserURLs(t *testing.T) {
 	tmpFile.Close()
 
 	s := &FileDB{
-		filePath: tmpFile.Name(),
+		fileName: tmpFile.Name(),
 	}
 	uuid.SetRand(rand.New(rand.NewSource(1)))
 	s.Store(ctx, domain.URL{

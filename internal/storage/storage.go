@@ -5,6 +5,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"go.uber.org/zap"
 
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
@@ -42,19 +43,19 @@ type StoragePingerCloserDeleter interface {
 	StorageDeleter
 }
 
-func NewStorage(c *config.Config) Storage {
+func NewStorage(c *config.Config, logger *zap.SugaredLogger) Storage {
 	if len(string(c.DatabaseDSN)) != 0 {
 		db, err := sqlx.Open("postgres", string(c.DatabaseDSN))
 		if err != nil {
 			panic(err)
 		}
 
-		return StoragePingerCloserDeleter(postgres.NewPostgres(db))
+		return StoragePingerCloserDeleter(postgres.NewPostgres(db, logger))
 	}
 
 	if len(string(c.FileStoragePath)) != 0 {
-		return StoragePinger(filedb.NewFileDB(string(c.FileStoragePath)))
+		return StoragePinger(filedb.NewFileDB(string(c.FileStoragePath), logger))
 	}
 
-	return inmemory.NewInMemory()
+	return inmemory.NewInMemory(logger)
 }

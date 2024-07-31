@@ -12,6 +12,7 @@ import (
 	"github.com/mikesvis/short/internal/context"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/drivers/inmemory"
+	"github.com/mikesvis/short/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +28,8 @@ func testConfig() *config.Config {
 
 func TestGetFullURL(t *testing.T) {
 	c := testConfig()
-	s := inmemory.NewInMemory()
+	l := logger.NewLogger()
+	s := inmemory.NewInMemory(l)
 	s.Store(_context.Background(), domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
 		Short: "short",
@@ -101,7 +103,8 @@ func TestGetFullURL(t *testing.T) {
 
 func TestCreateShortURLText(t *testing.T) {
 	c := testConfig()
-	s := inmemory.NewInMemory()
+	l := logger.NewLogger()
+	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.Store(ctx, domain.URL{
 		Full:   "http://www.yandex.ru/verylongpath",
@@ -220,8 +223,8 @@ func TestCreateShortURLText(t *testing.T) {
 
 func TestFail(t *testing.T) {
 	c := testConfig()
-
-	s := inmemory.NewInMemory()
+	l := logger.NewLogger()
+	s := inmemory.NewInMemory(l)
 	handler := NewHandler(c, s)
 
 	type request struct {
@@ -270,7 +273,8 @@ func TestFail(t *testing.T) {
 
 func TestCreateShortURLJSON(t *testing.T) {
 	c := testConfig()
-	s := inmemory.NewInMemory()
+	l := logger.NewLogger()
+	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.Store(_context.WithValue(ctx, context.UserIDContextKey, "DoomGuy"), domain.URL{
 		UserID: "DoomGuy",
@@ -360,7 +364,8 @@ func TestCreateShortURLJSON(t *testing.T) {
 
 func TestHandler_CreateShortURLBatch(t *testing.T) {
 	c := testConfig()
-	s := inmemory.NewInMemory()
+	l := logger.NewLogger()
+	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.StoreBatch(ctx, map[string]domain.URL{
 		"1": {
@@ -438,7 +443,8 @@ func TestHandler_CreateShortURLBatch(t *testing.T) {
 
 func TestHandler_GetUserURLs(t *testing.T) {
 	c := testConfig()
-	s := inmemory.NewInMemory()
+	l := logger.NewLogger()
+	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.Store(ctx, domain.URL{
 		UserID: "DoomGuy",

@@ -9,10 +9,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/mikesvis/short/internal/context"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/logger"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewStorageURL(t *testing.T) {
+	l := logger.NewLogger()
 	type args struct {
 		items map[domain.ID]domain.URL
 	}
@@ -31,7 +33,7 @@ func TestNewStorageURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			newStorage := NewInMemory()
+			newStorage := NewInMemory(l)
 			assert.IsType(t, tt.want, newStorage)
 		})
 	}

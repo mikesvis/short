@@ -12,6 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/errors"
+	"go.uber.org/zap"
 )
 
 type postgresDBItem struct {
@@ -28,16 +29,17 @@ type userUpdateItem struct {
 }
 
 type Postgres struct {
-	db *sqlx.DB
+	db     *sqlx.DB
+	logger *zap.SugaredLogger
 }
 
-func NewPostgres(db *sqlx.DB) *Postgres {
+func NewPostgres(db *sqlx.DB, logger *zap.SugaredLogger) *Postgres {
 	err := bootstrapDB(db)
 	if err != nil {
 		panic(err)
 	}
 
-	return &Postgres{db}
+	return &Postgres{db, logger}
 }
 
 func bootstrapDB(db *sqlx.DB) error {
@@ -59,6 +61,7 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 
 	stmt, err := s.db.PrepareContext(ctx, `INSERT INTO shorts (id, user_id, full_url, short_key) VALUES ($1, $2, $3, $4) ON CONFLICT (short_key) DO NOTHING`)
 	if err != nil {
+		s.logger.Errorw(`Cant prepare db query`, err)
 		return emptyResult, err
 	}
 	defer stmt.Close()
@@ -76,6 +79,7 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 		var pgErr *pgconn.PgError
 		if _goerrors.As(err, &pgErr) && pgErr.Code != pgerrcode.UniqueViolation {
 			// Ошибка непонятная
+			s.logger.Errorw(`Error occured during insert`, err)
 			return emptyResult, err
 		}
 	}
@@ -88,6 +92,7 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 	// Был конфликт пересечения по короткому урлу, забираем старый короткий урл который уже был в базе
 	old, err := s.GetByFull(ctx, u.Full)
 	if err != nil {
+		s.logger.Errorw(`Error occured during select`, err)
 		return emptyResult, err
 	}
 
@@ -100,6 +105,7 @@ func (s *Postgres) GetByFull(ctx context.Context, fullURL string) (domain.URL, e
 	// пробуем получить по полному урлу
 	stmt, err := s.db.PrepareContext(ctx, `SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE "full_url" = $1`)
 	if err != nil {
+		s.logger.Errorw(`Cant prepare db query`, err)
 		return emptyResult, err
 	}
 	defer stmt.Close()
@@ -115,6 +121,7 @@ func (s *Postgres) GetByFull(ctx context.Context, fullURL string) (domain.URL, e
 
 	if err != nil {
 		// какая-то другая ошибка
+		s.logger.Errorw(`Error occured during select`, err)
 		return emptyResult, err
 	}
 
@@ -127,6 +134,7 @@ func (s *Postgres) GetByShort(ctx context.Context, shortURL string) (domain.URL,
 	// пробуем получить по короткому урлу
 	stmt, err := s.db.PrepareContext(ctx, `SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE "short_key" = $1`)
 	if err != nil {
+		s.logger.Errorw(`Cant prepare db query`, err)
 		return emptyResult, err
 	}
 	defer stmt.Close()
@@ -142,6 +150,7 @@ func (s *Postgres) GetByShort(ctx context.Context, shortURL string) (domain.URL,
 
 	if err != nil {
 		// какая-то другая ошибка
+		s.logger.Errorw(`Error occured during select`, err)
 		return emptyResult, err
 	}
 
@@ -169,6 +178,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	// какое-то неведомое колдунство? Иначе where in не сделать
 	query, args, err := sqlx.In("SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE full_url IN (?)", fullUrls)
 	if err != nil {
+		s.logger.Errorw(`Error occured while composing query`, err)
 		return nil, err
 	}
 	query = s.db.Rebind(query)
@@ -177,6 +187,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	existingItems := []postgresDBItem{}
 	err = s.db.SelectContext(ctx, &existingItems, query, args...)
 	if err != nil {
+		s.logger.Errorw(`Error occured while select`, err)
 		return nil, err
 	}
 
@@ -214,11 +225,13 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	defer tx.Rollback()
 	_, err = tx.NamedExecContext(ctx, `INSERT INTO shorts (id, user_id, full_url, short_key) VALUES (:id, :user_id, :full_url, :short_key)`, newItems)
 	if err != nil {
+		s.logger.Errorw(`Error occured while batch insert`, err)
 		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
+		s.logger.Errorw(`Error occured while commiting transaction`, err)
 		return nil, err
 	}
 
@@ -236,20 +249,22 @@ func (s *Postgres) GetUserURLs(ctx context.Context, userID string) ([]domain.URL
 
 	rows, err := s.db.QueryxContext(ctx, "SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE user_id = $1", userID)
 	if err != nil {
+		s.logger.Errorw(`Error occured while preparing query`, err)
 		return nil, err
 	}
 	defer rows.Close()
 
-	return fetchUserURLs(rows)
+	return s.fetchUserURLs(rows)
 }
 
 // не вижу особого смысла так разбивать, но раз был комментарий то вынесу вот это
-func fetchUserURLs(rows *sqlx.Rows) ([]domain.URL, error) {
+func (s *Postgres) fetchUserURLs(rows *sqlx.Rows) ([]domain.URL, error) {
 	p := postgresDBItem{}
 	result := make([]domain.URL, 0, 20)
 	for rows.Next() {
 		err := rows.StructScan(&p)
 		if err != nil {
+			s.logger.Errorw(`Error occured while scanning row`, err)
 			return nil, err
 		}
 
@@ -263,6 +278,7 @@ func fetchUserURLs(rows *sqlx.Rows) ([]domain.URL, error) {
 
 	err := rows.Err()
 	if err != nil {
+		s.logger.Errorw(`Error caused by rows fetch`, err)
 		return nil, err
 	}
 
@@ -326,8 +342,7 @@ func (s *Postgres) validate(ctx context.Context, inputCh <-chan userUpdateItem) 
 			var id string
 			err := row.Scan(&id)
 			if err != nil {
-				// ошибка - не сможем потом заапдетить
-				// TODO Лог здорового человека с ошибкой
+				s.logger.Errorw(`Error occured while scanning row`, err, `data`, data)
 				continue
 			}
 
@@ -389,7 +404,7 @@ func (s *Postgres) deleteBatchByIds(ctx context.Context, inputCh chan string) {
 	// какое-то неведомое колдунство? Иначе where in не сделать
 	query, args, err := sqlx.In(`UPDATE shorts SET "is_deleted" = true WHERE id IN (?)`, idsToDelete)
 	if err != nil {
-		// TODO Лог здорового человека с ошибкой
+		s.logger.Errorw(`Error occured while making updating query`, err, `idsToDelete`, idsToDelete)
 		return
 	}
 	query = s.db.Rebind(query)
@@ -397,7 +412,7 @@ func (s *Postgres) deleteBatchByIds(ctx context.Context, inputCh chan string) {
 	_, err = s.db.ExecContext(ctx, query, args...)
 
 	if err != nil {
-		// TODO Лог здорового человека с ошибкой
+		s.logger.Errorw(`Error occured while updating rows`, err, `query`, query)
 		return
 	}
 }
