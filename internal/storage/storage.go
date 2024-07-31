@@ -5,6 +5,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"go.uber.org/zap"
 
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/domain"
@@ -18,6 +19,7 @@ type Storage interface {
 	StoreBatch(ctx context.Context, pack map[string]domain.URL) (map[string]domain.URL, error)
 	GetByFull(ctx context.Context, fullURL string) (domain.URL, error)
 	GetByShort(ctx context.Context, shortURL string) (domain.URL, error)
+	GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error)
 }
 
 type StoragePinger interface {
@@ -30,24 +32,30 @@ type StorageCloser interface {
 	Close() error
 }
 
-type StoragePingerCloser interface {
-	StoragePinger
-	StorageCloser
+type StorageDeleter interface {
+	Storage
+	DeleteBatch(ctx context.Context, userID string, pack []string)
 }
 
-func NewStorage(c *config.Config) Storage {
+type StoragePingerCloserDeleter interface {
+	StoragePinger
+	StorageCloser
+	StorageDeleter
+}
+
+func NewStorage(c *config.Config, logger *zap.SugaredLogger) Storage {
 	if len(string(c.DatabaseDSN)) != 0 {
 		db, err := sqlx.Open("postgres", string(c.DatabaseDSN))
 		if err != nil {
 			panic(err)
 		}
 
-		return StoragePingerCloser(postgres.NewPostgres(db))
+		return StoragePingerCloserDeleter(postgres.NewPostgres(db, logger))
 	}
 
 	if len(string(c.FileStoragePath)) != 0 {
-		return StoragePinger(filedb.NewFileDB(string(c.FileStoragePath)))
+		return StoragePinger(filedb.NewFileDB(string(c.FileStoragePath), logger))
 	}
 
-	return inmemory.NewInMemory()
+	return inmemory.NewInMemory(logger)
 }

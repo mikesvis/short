@@ -10,22 +10,24 @@ import (
 	"github.com/google/uuid"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/errors"
+	"go.uber.org/zap"
 )
 
 type fileDBItem struct {
 	UUID        string `json:"uuid"`
+	UserID      string `json:"user_id"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+	Deleted     bool   `json:"is_deleted"`
 }
 
 type FileDB struct {
-	filePath string
+	fileName string
+	logger   *zap.SugaredLogger
 }
 
-func NewFileDB(fileName string) *FileDB {
-	s := &FileDB{
-		filePath: fileName,
-	}
+func NewFileDB(fileName string, logger *zap.SugaredLogger) *FileDB {
+	s := &FileDB{fileName, logger}
 
 	return s
 }
@@ -41,7 +43,7 @@ func (s *FileDB) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
 		return old, errors.ErrConflict
 	}
 
-	file, err := os.OpenFile(s.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	file, err := os.OpenFile(s.fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return emptyResult, err
 	}
@@ -51,6 +53,7 @@ func (s *FileDB) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
 
 	item := fileDBItem{
 		UUID:        uuid.NewString(),
+		UserID:      u.UserID,
 		ShortURL:    u.Short,
 		OriginalURL: u.Full,
 	}
@@ -71,7 +74,7 @@ func (s *FileDB) GetByShort(ctx context.Context, shortURL string) (domain.URL, e
 }
 
 func (s *FileDB) findInFile(field, needle string) (domain.URL, error) {
-	file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(s.fileName, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return domain.URL{}, err
 	}
@@ -91,7 +94,12 @@ func (s *FileDB) findInFile(field, needle string) (domain.URL, error) {
 			continue
 		}
 
-		return domain.URL{Full: i.OriginalURL, Short: i.ShortURL}, nil
+		return domain.URL{
+			UserID:  i.UserID,
+			Full:    i.OriginalURL,
+			Short:   i.ShortURL,
+			Deleted: i.Deleted,
+		}, nil
 	}
 
 	return domain.URL{}, nil
@@ -104,7 +112,7 @@ func getField(i *fileDBItem, field string) string {
 }
 
 func (s *FileDB) Ping(ctx context.Context) error {
-	_, error := os.Stat(s.filePath)
+	_, error := os.Stat(s.fileName)
 
 	return error
 }
@@ -118,7 +126,7 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 	}
 
 	// для начала найдем совпадения по урлу, которые были сохранены ранее
-	file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(s.fileName, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +148,10 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 			// восстанавливаем его старый short вместо нового
 			delete(wantToStore, i.OriginalURL)
 			us[k] = domain.URL{
-				Full:  i.OriginalURL,
-				Short: i.ShortURL,
+				UserID:  i.UserID,
+				Full:    i.OriginalURL,
+				Short:   i.ShortURL,
+				Deleted: i.Deleted,
 			}
 		}
 
@@ -157,7 +167,7 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 	}
 
 	// будем сохранять только те елементы, которых нет
-	file, err = os.OpenFile(s.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	file, err = os.OpenFile(s.fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
 	}
@@ -170,8 +180,10 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 
 		item := fileDBItem{
 			UUID:        uuid.NewString(),
+			UserID:      us[v].UserID,
 			ShortURL:    us[v].Short,
 			OriginalURL: us[v].Full,
+			Deleted:     us[v].Deleted,
 		}
 
 		if err := encoder.Encode(&item); err != nil {
@@ -180,4 +192,36 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 	}
 
 	return us, nil
+}
+
+func (s *FileDB) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error) {
+	file, err := os.OpenFile(s.fileName, os.O_RDONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	result := make([]domain.URL, 0, 20)
+
+	decoder := json.NewDecoder(file)
+	for {
+		var i fileDBItem
+		if err := decoder.Decode(&i); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+
+		if i.UserID != userID {
+			continue
+		}
+
+		result = append(result, domain.URL{
+			UserID: i.UserID,
+			Full:   i.OriginalURL,
+			Short:  i.ShortURL,
+		})
+	}
+
+	return result, nil
 }

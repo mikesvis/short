@@ -2,18 +2,21 @@ package filedb
 
 import (
 	"bufio"
-	"context"
+	_context "context"
 	"math/rand"
 	"os"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/mikesvis/short/internal/context"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewStorageURL(t *testing.T) {
+	l := logger.NewLogger()
 	type args struct {
 		filePath string
 	}
@@ -32,14 +35,14 @@ func TestNewStorageURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			newStorage := NewFileDB(tt.args.filePath)
+			newStorage := NewFileDB(tt.args.filePath, l)
 			assert.IsType(t, tt.want, newStorage)
 		})
 	}
 }
 
 func Test_storageURL_Store(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 
 	tests := []struct {
 		name string
@@ -49,13 +52,16 @@ func Test_storageURL_Store(t *testing.T) {
 		{
 			name: "Store item",
 			args: domain.URL{
-				Full:  "http://www.yandex.ru/verylongpath",
-				Short: "short",
+				UserID: "DoomGuy",
+				Full:   "http://www.yandex.ru/verylongpath",
+				Short:  "short",
 			},
 			want: `{
 				"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72",
-				"short_url": "short",
-				"original_url":"http://www.yandex.ru/verylongpath"
+				"user_id":"DoomGuy",
+				"short_url":"short",
+				"original_url":"http://www.yandex.ru/verylongpath",
+				"is_deleted":false
 			}`,
 		},
 	}
@@ -69,14 +75,14 @@ func Test_storageURL_Store(t *testing.T) {
 
 			// Using temp file in storage
 			s := &FileDB{
-				filePath: tmpFile.Name(),
+				fileName: tmpFile.Name(),
 			}
 
 			// Storing
 			s.Store(ctx, tt.args)
 
 			// Reading temp file
-			file, err := os.OpenFile(s.filePath, os.O_RDONLY, 0666)
+			file, err := os.OpenFile(s.fileName, os.O_RDONLY, 0666)
 			require.Nil(t, err)
 			defer file.Close()
 			scanner := bufio.NewScanner(file)
@@ -103,7 +109,7 @@ func createAndSeedTestStorage(t *testing.T) string {
 }
 
 func Test_storageURL_GetByFull(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.Background()
 
 	tests := []struct {
 		name string
@@ -127,7 +133,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpFile := createAndSeedTestStorage(t)
 			s := &FileDB{
-				filePath: tmpFile,
+				fileName: tmpFile,
 			}
 			item, _ := s.GetByFull(ctx, tt.args)
 			assert.IsType(t, tt.want, item)
@@ -138,7 +144,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 }
 
 func Test_storageURL_GetByShort(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.Background()
 
 	tests := []struct {
 		name string
@@ -162,7 +168,7 @@ func Test_storageURL_GetByShort(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpFile := createAndSeedTestStorage(t)
 			s := &FileDB{
-				filePath: tmpFile,
+				fileName: tmpFile,
 			}
 			item, _ := s.GetByShort(ctx, tt.args)
 			assert.IsType(t, tt.want, item)
@@ -173,7 +179,7 @@ func Test_storageURL_GetByShort(t *testing.T) {
 }
 
 func TestFileDB_StoreBatch(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 
 	type want struct {
 		stored        map[string]domain.URL
@@ -189,21 +195,25 @@ func TestFileDB_StoreBatch(t *testing.T) {
 			name: "Batch store items",
 			args: map[string]domain.URL{
 				"1": {
-					Full:  "http://www.yandex.ru/verylongpath1",
-					Short: "short1",
+					UserID: "DoomGuy",
+					Full:   "http://www.yandex.ru/verylongpath1",
+					Short:  "short1",
 				},
 			},
 			want: want{
 				stored: map[string]domain.URL{
 					"1": {
-						Full:  "http://www.yandex.ru/verylongpath1",
-						Short: "short1",
+						UserID: "DoomGuy",
+						Full:   "http://www.yandex.ru/verylongpath1",
+						Short:  "short1",
 					},
 				},
 				storageString: `{
 					"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72",
+					"user_id":"DoomGuy",
 					"short_url": "short1",
-					"original_url":"http://www.yandex.ru/verylongpath1"
+					"original_url":"http://www.yandex.ru/verylongpath1",
+					"is_deleted":false
 				}`,
 			},
 		},
@@ -218,7 +228,7 @@ func TestFileDB_StoreBatch(t *testing.T) {
 
 			// Using temp file in storage
 			s := &FileDB{
-				filePath: tmpFile.Name(),
+				fileName: tmpFile.Name(),
 			}
 
 			// Storing
@@ -226,7 +236,7 @@ func TestFileDB_StoreBatch(t *testing.T) {
 			require.NoError(t, err)
 
 			// Reading temp file
-			file, err := os.OpenFile(s.filePath, os.O_RDONLY, 0666)
+			file, err := os.OpenFile(s.fileName, os.O_RDONLY, 0666)
 			require.Nil(t, err)
 			defer file.Close()
 			scanner := bufio.NewScanner(file)
@@ -240,4 +250,54 @@ func TestFileDB_StoreBatch(t *testing.T) {
 			os.Remove(tmpFile.Name())
 		})
 	}
+}
+
+func TestFileDB_GetUserURLs(t *testing.T) {
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	tmpFile.Close()
+
+	s := &FileDB{
+		fileName: tmpFile.Name(),
+	}
+	uuid.SetRand(rand.New(rand.NewSource(1)))
+	s.Store(ctx, domain.URL{
+		UserID: "DoomGuy",
+		Full:   "http://iddqd.com",
+		Short:  "idkfa",
+	})
+
+	tests := []struct {
+		name string
+		args string
+		want []domain.URL
+	}{
+		{
+			name: "Get current user URLs",
+			args: "DoomGuy",
+			want: []domain.URL{
+				{
+					UserID:  "DoomGuy",
+					Full:    "http://iddqd.com",
+					Short:   "idkfa",
+					Deleted: false,
+				},
+			},
+		},
+		{
+			name: "Get empty list user URLs",
+			args: "Heretic",
+			want: []domain.URL{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := s.GetUserURLs(ctx, tt.args)
+			require.NoError(t, err)
+
+			assert.EqualValues(t, tt.want, result)
+		})
+	}
+	os.Remove(tmpFile.Name())
 }

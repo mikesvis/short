@@ -1,16 +1,20 @@
 package inmemory
 
 import (
-	"context"
+	_context "context"
 	"math/rand"
+	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/mikesvis/short/internal/context"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/logger"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewStorageURL(t *testing.T) {
+	l := logger.NewLogger()
 	type args struct {
 		items map[domain.ID]domain.URL
 	}
@@ -29,14 +33,14 @@ func TestNewStorageURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			newStorage := NewInMemory()
+			newStorage := NewInMemory(l)
 			assert.IsType(t, tt.want, newStorage)
 		})
 	}
 }
 
 func Test_storageURL_Store(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.Background()
 
 	type fields struct {
 		items map[domain.ID]domain.URL
@@ -58,8 +62,9 @@ func Test_storageURL_Store(t *testing.T) {
 			},
 			want: map[domain.ID]domain.URL{
 				"52fdfc07-2182-454f-963f-5f0f9a621d72": {
-					Full:  "http://www.yandex.ru/verylongpath",
-					Short: "http://localhost/short",
+					Full:    "http://www.yandex.ru/verylongpath",
+					Short:   "http://localhost/short",
+					Deleted: false,
 				},
 			},
 		},
@@ -77,7 +82,7 @@ func Test_storageURL_Store(t *testing.T) {
 }
 
 func Test_storageURL_GetByFull(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.Background()
 
 	type fields struct {
 		items map[domain.ID]domain.URL
@@ -104,8 +109,9 @@ func Test_storageURL_GetByFull(t *testing.T) {
 			},
 			args: "http://www.yandex.ru/verylongpath1",
 			want: domain.URL{
-				Full:  "http://www.yandex.ru/verylongpath1",
-				Short: "http://localhost/short1",
+				Full:    "http://www.yandex.ru/verylongpath1",
+				Short:   "http://localhost/short1",
+				Deleted: false,
 			},
 		}, {
 			name: "Is not found by full",
@@ -134,7 +140,7 @@ func Test_storageURL_GetByFull(t *testing.T) {
 }
 
 func Test_storageURL_GetByShort(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.Background()
 
 	type fields struct {
 		items map[domain.ID]domain.URL
@@ -161,8 +167,9 @@ func Test_storageURL_GetByShort(t *testing.T) {
 			},
 			args: "http://localhost/short1",
 			want: domain.URL{
-				Full:  "http://www.yandex.ru/verylongpath1",
-				Short: "http://localhost/short1",
+				Full:    "http://www.yandex.ru/verylongpath1",
+				Short:   "http://localhost/short1",
+				Deleted: false,
 			},
 		}, {
 			name: "Is not found by short",
@@ -191,7 +198,7 @@ func Test_storageURL_GetByShort(t *testing.T) {
 }
 
 func TestMemoryMap_StoreBatch(t *testing.T) {
-	ctx := context.Background()
+	ctx := _context.Background()
 
 	type fields struct {
 		items map[domain.ID]domain.URL
@@ -215,8 +222,9 @@ func TestMemoryMap_StoreBatch(t *testing.T) {
 			},
 			want: map[string]domain.URL{
 				"1": {
-					Full:  "http://www.yandex.ru/verylongpath1",
-					Short: "short1",
+					Full:    "http://www.yandex.ru/verylongpath1",
+					Short:   "short1",
+					Deleted: false,
 				},
 			},
 		},
@@ -230,6 +238,73 @@ func TestMemoryMap_StoreBatch(t *testing.T) {
 			stored, err := s.StoreBatch(ctx, tt.args)
 			assert.NoError(t, err)
 			assert.EqualValues(t, tt.want, stored)
+		})
+	}
+}
+
+func TestInMemory_GetUserURLs(t *testing.T) {
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+	type fields struct {
+		items map[domain.ID]domain.URL
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    string
+		want    []domain.URL
+		wantErr bool
+	}{
+		{
+			name: "Get current user URLs",
+			fields: fields{
+				items: map[domain.ID]domain.URL{
+					"1": {
+						UserID: "DoomGuy",
+						Full:   "http://iddqd.com",
+						Short:  "idkfa",
+					},
+				},
+			},
+			args: "DoomGuy",
+			want: []domain.URL{
+				{
+					UserID:  "DoomGuy",
+					Full:    "http://iddqd.com",
+					Short:   "idkfa",
+					Deleted: false,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Get empty list user URLs",
+			fields: fields{
+				items: map[domain.ID]domain.URL{
+					"1": {
+						UserID: "DoomGuy",
+						Full:   "http://iddqd.com",
+						Short:  "idkfa",
+					},
+				},
+			},
+			args:    "Heretic",
+			want:    []domain.URL{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &InMemory{
+				items: tt.fields.items,
+			}
+			got, err := s.GetUserURLs(ctx, tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("InMemory.GetUserURLs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("InMemory.GetUserURLs() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

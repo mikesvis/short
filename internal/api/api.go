@@ -10,16 +10,19 @@ type Response struct {
 	Result URL `json:"result"`
 }
 
-type BatchRequest []BatchRequestItem
-
-type BatchRequestItem struct {
+type BatchRequest []struct {
 	CorrelationID string `json:"correlation_id"`
 	OriginalURL   string `json:"original_url"`
 }
 
-type BatchResponse []BatchResponseItem
-
-type BatchResponseItem struct {
+type BatchResponse []struct {
 	CorrelationID string `json:"correlation_id"`
 	ShortURL      string `json:"short_url"`
 }
+
+type UserResponse []struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
+type BatchDeleteRequest []string

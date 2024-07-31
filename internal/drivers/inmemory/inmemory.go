@@ -6,15 +6,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/errors"
+	"go.uber.org/zap"
 )
 
 type InMemory struct {
-	items map[domain.ID]domain.URL
+	items  map[domain.ID]domain.URL
+	logger *zap.SugaredLogger
 }
 
-func NewInMemory() *InMemory {
+func NewInMemory(logger *zap.SugaredLogger) *InMemory {
 	items := make(map[domain.ID]domain.URL)
-	return &InMemory{items: items}
+	return &InMemory{items, logger}
 }
 
 func (s *InMemory) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
@@ -67,8 +69,10 @@ func (s *InMemory) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 			// восстанавливаем его старый short вместо нового
 			delete(wantToStore, v.Full)
 			us[k] = domain.URL{
-				Full:  v.Full,
-				Short: v.Short,
+				UserID:  v.UserID,
+				Full:    v.Full,
+				Short:   v.Short,
+				Deleted: v.Deleted,
 			}
 		}
 
@@ -89,4 +93,17 @@ func (s *InMemory) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	}
 
 	return us, nil
+}
+
+func (s *InMemory) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error) {
+	result := make([]domain.URL, 0, 20)
+	for _, v := range s.items {
+		if v.UserID != userID {
+			continue
+		}
+
+		result = append(result, v)
+	}
+
+	return result, nil
 }

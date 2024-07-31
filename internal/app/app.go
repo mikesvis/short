@@ -23,7 +23,7 @@ type App struct {
 func New() *App {
 	config := config.NewConfig()
 	logger := logger.NewLogger()
-	storage := storage.NewStorage(config)
+	storage := storage.NewStorage(config, logger)
 	handler := server.NewHandler(config, storage)
 	router := server.NewRouter(
 		handler,
@@ -32,7 +32,10 @@ func New() *App {
 			[]string{
 				"application/json",
 				"text/html",
-				"application/x-gzip"}))
+				"application/x-gzip",
+			},
+		),
+	)
 
 	return &App{
 		config,
@@ -44,7 +47,6 @@ func New() *App {
 
 func (a *App) Run() {
 	a.logger.Infow("Config initialized", "config", a.config)
-	// хоспади какие костыли ради разных хранилищ
 	if _, isCloser := a.storage.(storage.StorageCloser); isCloser {
 		defer a.storage.(storage.StorageCloser).Close()
 	}
