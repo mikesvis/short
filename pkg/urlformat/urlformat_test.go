@@ -32,6 +32,12 @@ func TestGetFormattedURL(t *testing.T) {
 	}
 }
 
+func BenchmarkGetFormattedURL(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		FormatURL("http://example.com", "IddQd")
+	}
+}
+
 func TestValidateURL(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -62,6 +68,12 @@ func TestValidateURL(t *testing.T) {
 
 			assert.NoError(t, err)
 		})
+	}
+}
+
+func BenchmarkValidateURL(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidateURL("http://ya.ru")
 	}
 }
 
@@ -97,5 +109,11 @@ func TestSanitizeURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, SanitizeURL(tt.value))
 		})
+	}
+}
+
+func BenchmarkSanitizeURL(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		SanitizeURL("abcde")
 	}
 }

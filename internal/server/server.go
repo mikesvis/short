@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/mikesvis/short/internal/middleware"
 )
 
@@ -19,6 +20,7 @@ func NewRouter(h *Handler, middlewares ...func(http.Handler) http.Handler) *chi.
 	})
 
 	r.Route("/", func(r chi.Router) {
+		r.Mount("/debug", chiMiddleware.Profiler())
 		r.Get("/ping", h.Ping)
 		r.Get("/{shortKey}", h.GetFullURL)
 		r.With(middleware.SignIn).Post("/", h.CreateShortURLText)
