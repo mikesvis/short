@@ -1,3 +1,4 @@
+// Модуль логирования запросов в приложении.
 package middleware
 
 import (
@@ -19,6 +20,7 @@ type (
 	}
 )
 
+// Логирование запросов и времени обработки.
 func RequestResponseLogger(log *zap.SugaredLogger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
@@ -51,12 +53,14 @@ func RequestResponseLogger(log *zap.SugaredLogger) func(next http.Handler) http.
 	}
 }
 
+// Запись размера в ответ
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
 	size, err := r.ResponseWriter.Write(b)
 	r.responseData.size += size
 	return size, err
 }
 
+// Запись заголовка
 func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
 	r.responseData.status = statusCode

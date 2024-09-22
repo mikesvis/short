@@ -1,3 +1,4 @@
+// Пакет приложения сокращателя ссылок.
 package app
 
 import (
@@ -13,6 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// App - стуктура приложения с конфигом, логгером, storage и роутером.
 type App struct {
 	config  *config.Config
 	logger  *zap.SugaredLogger
@@ -20,6 +22,8 @@ type App struct {
 	router  *chi.Mux
 }
 
+// Конструктор приложения, здесь инициализируются все зависимости:
+// конфиг приложения, логгер, storage, роутер. Также здесь регистрируются middleware приложения.
 func New() *App {
 	config := config.NewConfig()
 	logger := logger.NewLogger()
@@ -45,6 +49,7 @@ func New() *App {
 	}
 }
 
+// Запуск приложения.
 func (a *App) Run() {
 	a.logger.Infow("Config initialized", "config", a.config)
 	if _, isCloser := a.storage.(storage.StorageCloser); isCloser {

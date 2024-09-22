@@ -1,3 +1,4 @@
+// Модуль авторизации в приложении.
 package middleware
 
 import (
@@ -13,6 +14,7 @@ import (
 	"github.com/mikesvis/short/internal/jwt"
 )
 
+// Регистрация по куке jwt.AuthorizationCookieName. В результате успешной регистрации будет создана кука и прописан ID пользователя в контекст.
 func SignIn(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authCookie, err := r.Cookie(jwt.AuthorizationCookieName)
@@ -63,6 +65,7 @@ func SignIn(next http.Handler) http.Handler {
 	})
 }
 
+// Построение авторизационной куки.
 func CreateAuthCookie(tokenString string, exp time.Time) *http.Cookie {
 	return &http.Cookie{
 		Name:    jwt.AuthorizationCookieName,
@@ -72,6 +75,7 @@ func CreateAuthCookie(tokenString string, exp time.Time) *http.Cookie {
 	}
 }
 
+// Авторизация по куке jwt.AuthorizationCookieName
 func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authCookie, err := r.Cookie(jwt.AuthorizationCookieName)

@@ -1,3 +1,4 @@
+// Модуль сжатия gzip для запросов/ответов.
 package compressor
 
 import (
@@ -19,19 +20,23 @@ func newCompressWriter(w http.ResponseWriter) *compressWriter {
 	}
 }
 
+// Получение заголовка
 func (c *compressWriter) Header() http.Header {
 	return c.w.Header()
 }
 
+// Запись body
 func (c *compressWriter) Write(p []byte) (int, error) {
 	return c.zw.Write(p)
 }
 
+// Установка заголовка
 func (c *compressWriter) WriteHeader(statusCode int) {
 	c.w.Header().Set("Content-Encoding", "gzip")
 	c.w.WriteHeader(statusCode)
 }
 
+// Закрытие запроса
 func (c *compressWriter) Close() error {
 	return c.zw.Close()
 }
@@ -53,10 +58,12 @@ func newCompressReader(r io.ReadCloser) (*compressReader, error) {
 	}, nil
 }
 
+// Чтение body
 func (c compressReader) Read(p []byte) (n int, err error) {
 	return c.zr.Read(p)
 }
 
+// Закрытие запроса
 func (c *compressReader) Close() error {
 	if err := c.r.Close(); err != nil {
 		return err
@@ -64,6 +71,7 @@ func (c *compressReader) Close() error {
 	return c.zr.Close()
 }
 
+// Мидлваря для сжатия запросов/ответов.
 func GZip(acceptedContentTypes []string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {

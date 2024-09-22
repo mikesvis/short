@@ -1,3 +1,4 @@
+// Модуль роутера приложения.
 package server
 
 import (
@@ -8,6 +9,7 @@ import (
 	"github.com/mikesvis/short/internal/middleware"
 )
 
+// Конструктор роутера, в нем регистрируются эндпоинты приложения и мидлвари.
 func NewRouter(h *Handler, middlewares ...func(http.Handler) http.Handler) *chi.Mux {
 	r := chi.NewMux()
 	r.Use(middlewares...)

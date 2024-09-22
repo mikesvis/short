@@ -1,3 +1,4 @@
+// Модуль storage для хранения в файлах.
 package filedb
 
 import (
@@ -21,17 +22,21 @@ type fileDBItem struct {
 	Deleted     bool   `json:"is_deleted"`
 }
 
+// Storage для хранения в файлах, включает в себя путь к файлу и логгер.
 type FileDB struct {
 	fileName string
 	logger   *zap.SugaredLogger
 }
 
+// Конструктор storage для файла.
 func NewFileDB(fileName string, logger *zap.SugaredLogger) *FileDB {
 	s := &FileDB{fileName, logger}
 
 	return s
 }
 
+// Сохранение короткой ссылки. При сохранении происходит поиск на предмет уже существующей ссылки.
+// В случае если такая ссылка уже была ранее создана вернется ошибка.
 func (s *FileDB) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
 	emptyResult := domain.URL{}
 	old, err := s.GetByFull(ctx, u.Full)
@@ -65,10 +70,12 @@ func (s *FileDB) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
 	return u, nil
 }
 
+// Поиск по полной ссылке.
 func (s *FileDB) GetByFull(ctx context.Context, fullURL string) (domain.URL, error) {
 	return s.findInFile("OriginalURL", fullURL)
 }
 
+// Поиск по короткой ссылке.
 func (s *FileDB) GetByShort(ctx context.Context, shortURL string) (domain.URL, error) {
 	return s.findInFile("ShortURL", shortURL)
 }
@@ -111,12 +118,14 @@ func getField(i *fileDBItem, field string) string {
 	return string(f.String())
 }
 
+// Пинг хранилки в файле.
 func (s *FileDB) Ping(ctx context.Context) error {
 	_, error := os.Stat(s.fileName)
 
 	return error
 }
 
+// Пакетное сохранение коротких URL. В методе используется поиск уже существующих URL.
 func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[string]domain.URL, error) {
 	// в мапе хранится полный урл = ключ корреляции
 	wantToStore := make(map[string]string, len(us))
@@ -194,6 +203,7 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 	return us, nil
 }
 
+// Получение ссылок, созданных пользоваетелем.
 func (s *FileDB) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error) {
 	file, err := os.OpenFile(s.fileName, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
