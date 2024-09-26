@@ -1,5 +1,5 @@
 // Модуль сжатия gzip для запросов/ответов.
-package compressor
+package middleware
 
 import (
 	"compress/gzip"

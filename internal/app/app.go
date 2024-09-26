@@ -10,7 +10,6 @@ import (
 	"github.com/mikesvis/short/internal/middleware"
 	"github.com/mikesvis/short/internal/server"
 	"github.com/mikesvis/short/internal/storage"
-	"github.com/mikesvis/short/pkg/compressor"
 	"go.uber.org/zap"
 )
 
@@ -32,7 +31,7 @@ func New() *App {
 	router := server.NewRouter(
 		handler,
 		middleware.RequestResponseLogger(logger),
-		compressor.GZip(
+		middleware.GZip(
 			[]string{
 				"application/json",
 				"text/html",
