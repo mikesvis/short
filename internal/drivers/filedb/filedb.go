@@ -161,7 +161,7 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 	for {
 
 		var i fileDBItem
-		if err := decoder.Decode(&i); err == io.EOF {
+		if err = decoder.Decode(&i); err == io.EOF {
 			break
 		} else if err != nil {
 			return nil, err

@@ -53,8 +53,8 @@ func testServer() *httptest.Server {
 }
 
 // я немного очумел пока это сделал
-func generateTestCookiesByUser(UserID string) []*http.Cookie {
-	startTokenString, _ := jwt.CreateTokenString(UserID, time.Now().Add(5*time.Minute))
+func generateTestCookiesByUser(userID string) []*http.Cookie {
+	startTokenString, _ := jwt.CreateTokenString(userID, time.Now().Add(5*time.Minute))
 	startCookie := middleware.CreateAuthCookie(startTokenString, time.Now().Add(5*time.Minute))
 	cookies := []*http.Cookie{}
 	cookies = append(cookies, startCookie)
