@@ -1,14 +1,38 @@
 package main
 
 import (
+	"fmt"
 	_ "net/http/pprof"
 
 	"github.com/mikesvis/short/internal/app"
+	"github.com/mikesvis/short/internal/config"
 )
 
-/* Нужен 1 на 1 я не понял как снимать профиль памяти, но тесты прошли :) */
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+)
+
+func valueOrNA(value string) string {
+	if value == "" {
+		return "N/A"
+	}
+	return value
+}
+
+func buildInfo() string {
+	return fmt.Sprintf(
+		"Build version: %s\nBuild date: %s\nBuild commit: %s",
+		valueOrNA(buildVersion), valueOrNA(buildDate), valueOrNA(buildCommit),
+	)
+}
+
 func main() {
-	app := app.New()
+	fmt.Println()
+
+	config := config.NewConfig()
+	app := app.New(config)
 
 	app.Run()
 }

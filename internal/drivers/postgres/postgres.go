@@ -36,13 +36,13 @@ type Postgres struct {
 }
 
 // Конструктор storage в базе. При инициализации будут созданы недостающие таблицы.
-func NewPostgres(db *sqlx.DB, logger *zap.SugaredLogger) *Postgres {
+func NewPostgres(db *sqlx.DB, logger *zap.SugaredLogger) (*Postgres, error) {
 	err := bootstrapDB(db)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return &Postgres{db, logger}
+	return &Postgres{db, logger}, nil
 }
 
 func bootstrapDB(db *sqlx.DB) error {

@@ -62,19 +62,24 @@ type StoragePingerCloserDeleter interface {
 }
 
 // Конструктор хранилки. На основании конфига выбирается движок для хранилки.
-func NewStorage(c *config.Config, logger *zap.SugaredLogger) Storage {
+func NewStorage(c *config.Config, logger *zap.SugaredLogger) (Storage, error) {
 	if len(string(c.DatabaseDSN)) != 0 {
 		db, err := sqlx.Open("postgres", string(c.DatabaseDSN))
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
-		return StoragePingerCloserDeleter(postgres.NewPostgres(db, logger))
+		postgresStorage, err := postgres.NewPostgres(db, logger)
+		if err != nil {
+			return nil, err
+		}
+
+		return StoragePingerCloserDeleter(postgresStorage), nil
 	}
 
 	if len(string(c.FileStoragePath)) != 0 {
-		return StoragePinger(filedb.NewFileDB(string(c.FileStoragePath), logger))
+		return StoragePinger(filedb.NewFileDB(string(c.FileStoragePath), logger)), nil
 	}
 
-	return inmemory.NewInMemory(logger)
+	return inmemory.NewInMemory(logger), nil
 }

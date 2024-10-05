@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/drivers/inmemory"
 	"github.com/mikesvis/short/internal/logger"
+	"github.com/mikesvis/short/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +30,7 @@ func testConfig() *config.Config {
 
 func TestGetFullURL(t *testing.T) {
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	s.Store(_context.Background(), domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
@@ -103,7 +105,7 @@ func TestGetFullURL(t *testing.T) {
 
 func BenchmarkGetFullURL(b *testing.B) {
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	s.Store(_context.Background(), domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
@@ -123,7 +125,7 @@ func BenchmarkGetFullURL(b *testing.B) {
 
 func TestCreateShortURLText(t *testing.T) {
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.Store(ctx, domain.URL{
@@ -243,7 +245,7 @@ func TestCreateShortURLText(t *testing.T) {
 
 func BenchmarkCreateShortURLText(b *testing.B) {
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.Store(ctx, domain.URL{
@@ -265,7 +267,7 @@ func BenchmarkCreateShortURLText(b *testing.B) {
 
 func TestFail(t *testing.T) {
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	handler := NewHandler(c, s)
 
@@ -315,7 +317,7 @@ func TestFail(t *testing.T) {
 
 func TestCreateShortURLJSON(t *testing.T) {
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.Store(_context.WithValue(ctx, context.UserIDContextKey, "DoomGuy"), domain.URL{
@@ -406,7 +408,7 @@ func TestCreateShortURLJSON(t *testing.T) {
 
 func BenchmarkCreateShortURLJSON(b *testing.B) {
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.Store(_context.WithValue(ctx, context.UserIDContextKey, "DoomGuy"), domain.URL{
@@ -428,7 +430,7 @@ func BenchmarkCreateShortURLJSON(b *testing.B) {
 
 func TestCreateShortURLBatch(t *testing.T) {
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.StoreBatch(ctx, map[string]domain.URL{
@@ -507,7 +509,7 @@ func TestCreateShortURLBatch(t *testing.T) {
 
 func BenchmarkCreateShortURLBatch(b *testing.B) {
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.StoreBatch(ctx, map[string]domain.URL{
@@ -531,7 +533,7 @@ func BenchmarkCreateShortURLBatch(b *testing.B) {
 
 func TestGetUserURLs(t *testing.T) {
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.Store(ctx, domain.URL{
@@ -619,7 +621,7 @@ func TestGetUserURLs(t *testing.T) {
 
 func BenchmarkGetUserURLs(b *testing.B) {
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	s.Store(ctx, domain.URL{
@@ -636,5 +638,181 @@ func BenchmarkGetUserURLs(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		handle(w, request)
+	}
+}
+
+func TestHandler_Ping(t *testing.T) {
+	l, _ := logger.NewLogger()
+	ctx := _context.Background()
+	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	tmpFile.Close()
+	type args struct {
+		config *config.Config
+	}
+	type want struct {
+		statusCode int
+		wantError  bool
+	}
+	tests := []struct {
+		args args
+		name string
+		want want
+	}{
+		{
+			name: "In memory db not found",
+			args: args{
+				config: &config.Config{
+					ServerAddress:   "127.0.0.1",
+					BaseURL:         "http://short.go",
+					FileStoragePath: "",
+					DatabaseDSN:     "",
+				},
+			},
+			want: want{
+				wantError:  false,
+				statusCode: http.StatusNotFound,
+			},
+		},
+		{
+			name: "Ping file db success",
+			args: args{
+				config: &config.Config{
+					ServerAddress:   "127.0.0.1",
+					BaseURL:         "http://short.go",
+					FileStoragePath: tmpFile.Name(),
+					DatabaseDSN:     "",
+				},
+			},
+			want: want{
+				wantError:  false,
+				statusCode: http.StatusOK,
+			},
+		},
+		{
+			name: "Ping file db fail",
+			args: args{
+				config: &config.Config{
+					ServerAddress:   "127.0.0.1",
+					BaseURL:         "http://short.go",
+					FileStoragePath: "dummyfile.bin",
+					DatabaseDSN:     "",
+				},
+			},
+			want: want{
+				wantError:  false,
+				statusCode: http.StatusInternalServerError,
+			},
+		},
+		{
+			name: "Postgres db success",
+			args: args{
+				config: &config.Config{
+					ServerAddress:   "127.0.0.1",
+					BaseURL:         "http://short.go",
+					FileStoragePath: "",
+					DatabaseDSN:     "host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable",
+				},
+			},
+			want: want{
+				wantError:  false,
+				statusCode: http.StatusOK,
+			},
+		},
+		{
+			name: "Postgres db fail",
+			args: args{
+				config: &config.Config{
+					ServerAddress:   "127.0.0.1",
+					BaseURL:         "http://short.go",
+					FileStoragePath: "",
+					DatabaseDSN:     "host=0.0.0.0 port=5433 user=postgres password=postgres dbname=nodb sslmode=disable",
+				},
+			},
+			want: want{
+				wantError:  true,
+				statusCode: http.StatusNotFound,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/ping", strings.NewReader(``)).WithContext(ctx)
+			w := httptest.NewRecorder()
+			s, err := storage.NewStorage(tt.args.config, l)
+			if tt.want.wantError {
+				require.Error(t, err)
+			}
+			handler := NewHandler(tt.args.config, s)
+			handle := http.HandlerFunc(handler.Ping)
+			handle(w, request)
+			result := w.Result()
+			defer result.Body.Close()
+			assert.Equal(t, tt.want.statusCode, result.StatusCode)
+		})
+	}
+	os.Remove(tmpFile.Name())
+}
+
+func TestHandler_DeleteUserURLs(t *testing.T) {
+	c := &config.Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: "",
+		DatabaseDSN:     "host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable",
+	}
+	l, err := logger.NewLogger()
+	require.NoError(t, err)
+	s, err := storage.NewStorage(c, l)
+	require.NoError(t, err)
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+	s.StoreBatch(ctx, map[string]domain.URL{
+		"1": {
+			UserID: "DoomGuy",
+			Full:   "http://www.yandex.ru/verylongpath1",
+			Short:  "short1",
+		},
+		"2": {
+			UserID: "DoomGuy",
+			Full:   "http://www.yandex.ru/verylongpath2",
+			Short:  "short2",
+		},
+	})
+	type want struct {
+		statusCode int
+	}
+	type request struct {
+		method string
+		target string
+		body   string
+	}
+	tests := []struct {
+		name    string
+		want    want
+		request request
+	}{
+		{
+			name: "Delete user URLs",
+			want: want{
+				statusCode: http.StatusAccepted,
+			},
+			request: request{
+				method: "DELETE",
+				target: "/api/user/urls",
+				body:   `["short1","short2"]`,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(ctx)
+			w := httptest.NewRecorder()
+			handler := NewHandler(c, s)
+			handle := http.HandlerFunc(handler.DeleteUserURLs)
+			handle(w, request)
+			result := w.Result()
+			defer result.Body.Close()
+
+			assert.Equal(t, tt.want.statusCode, result.StatusCode)
+		})
 	}
 }

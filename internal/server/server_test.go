@@ -46,8 +46,8 @@ func testServer() *httptest.Server {
 		FileStoragePath: "",
 		DatabaseDSN:     "",
 	}
-	l := logger.NewLogger()
-	s := storage.NewStorage(c, l)
+	l, _ := logger.NewLogger()
+	s, _ := storage.NewStorage(c, l)
 	h := NewHandler(c, s)
 	return httptest.NewServer(NewRouter(h, middleware.RequestResponseLogger(l)))
 }

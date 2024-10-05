@@ -16,7 +16,7 @@ import (
 func ExampleHandler_GetFullURL() {
 	// определяем конфиг, логгер, хранилку (в примере хранилка в памяти)
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 
 	// формируем запрос
@@ -36,7 +36,7 @@ func ExampleHandler_GetFullURL() {
 func ExampleHandler_CreateShortURLText() {
 	// определяем конфиг, логгер, хранилку (в примере хранилка в памяти) и конекст с ID пользователя
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 
@@ -58,7 +58,7 @@ func ExampleHandler_CreateShortURLText() {
 func ExampleHandler_CreateShortURLJSON() {
 	// определяем конфиг, логгер, хранилку (в примере хранилка в памяти) и конекст с ID пользователя
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 
@@ -80,7 +80,7 @@ func ExampleHandler_CreateShortURLJSON() {
 func ExampleHandler_CreateShortURLBatch() {
 	// определяем конфиг, логгер, хранилку (в примере хранилка в памяти) и конекст с ID пользователя
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 
@@ -102,7 +102,7 @@ func ExampleHandler_CreateShortURLBatch() {
 func ExampleHandler_GetUserURLs() {
 	// определяем конфиг, логгер, хранилку (в примере хранилка в памяти) и конекст с ID пользователя
 	c := testConfig()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
 
 	// формируем запрос
