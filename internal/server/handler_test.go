@@ -753,7 +753,7 @@ func TestHandler_Ping(t *testing.T) {
 	os.Remove(tmpFile.Name())
 }
 
-func TestHandler_DeleteUserURLs(t *testing.T) {
+func TestDeleteUserURLs(t *testing.T) {
 	c := &config.Config{
 		ServerAddress:   "localhost:8080",
 		BaseURL:         "http://localhost:8080",
