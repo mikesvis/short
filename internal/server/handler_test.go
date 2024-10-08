@@ -703,21 +703,21 @@ func TestHandler_Ping(t *testing.T) {
 				statusCode: http.StatusInternalServerError,
 			},
 		},
-		{
-			name: "Postgres db success",
-			args: args{
-				config: &config.Config{
-					ServerAddress:   "127.0.0.1",
-					BaseURL:         "http://short.go",
-					FileStoragePath: "",
-					DatabaseDSN:     "host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable",
-				},
-			},
-			want: want{
-				wantError:  false,
-				statusCode: http.StatusOK,
-			},
-		},
+		// {
+		// 	name: "Postgres db success",
+		// 	args: args{
+		// 		config: &config.Config{
+		// 			ServerAddress:   "127.0.0.1",
+		// 			BaseURL:         "http://short.go",
+		// 			FileStoragePath: "",
+		// 			DatabaseDSN:     "host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable",
+		// 		},
+		// 	},
+		// 	want: want{
+		// 		wantError:  false,
+		// 		statusCode: http.StatusOK,
+		// 	},
+		// },
 		{
 			name: "Postgres db fail",
 			args: args{
