@@ -1,3 +1,4 @@
+// Модуль описания handler'ов.
 package server
 
 import (
@@ -20,11 +21,13 @@ import (
 	"github.com/mikesvis/short/pkg/urlformat"
 )
 
+// Хендлер приложения, включает в себя *config.Config и storage.Storage.
 type Handler struct {
 	config  *config.Config
 	storage storage.Storage
 }
 
+// Конструктор хендлера
 func NewHandler(config *config.Config, storage storage.Storage) *Handler {
 	return &Handler{config, storage}
 }
@@ -237,6 +240,8 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 	jsonEncoder.Encode(response)
 }
 
+// Обработка /api/user/urls GET
+// Получение URL пользователя
 func (h *Handler) GetUserURLs(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := _context.WithCancel(r.Context())
 	defer cancel()
@@ -273,6 +278,8 @@ func (h *Handler) GetUserURLs(w http.ResponseWriter, r *http.Request) {
 	jsonEncoder.Encode(response)
 }
 
+// Обработка /api/user/urls DELETE
+// Удаление URL пользователя
 func (h *Handler) DeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := _context.WithCancel(r.Context())
 	defer cancel()

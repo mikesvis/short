@@ -1,3 +1,4 @@
+// Модуль форматирования ссылок
 package urlformat
 
 import (
@@ -25,6 +26,7 @@ func ValidateURL(URL string) error {
 	return nil
 }
 
+// Чистка URL
 func SanitizeURL(URL string) string {
 	return strings.Trim(URL, " ")
 }

@@ -39,7 +39,16 @@ func TestNewStorageURL(t *testing.T) {
 	}
 }
 
-func Test_storageURL_Store(t *testing.T) {
+func BenchmarkNewStorageURL(b *testing.B) {
+	l := logger.NewLogger()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		NewInMemory(l)
+	}
+}
+
+func TestStore(t *testing.T) {
 	ctx := _context.Background()
 
 	type fields struct {
@@ -81,7 +90,21 @@ func Test_storageURL_Store(t *testing.T) {
 	}
 }
 
-func Test_storageURL_GetByFull(t *testing.T) {
+func BenchmarkStore(b *testing.B) {
+	ctx := _context.Background()
+	l := logger.NewLogger()
+	s := NewInMemory(l)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.Store(ctx, domain.URL{
+			Full:  "http://www.yandex.ru/verylongpath",
+			Short: "http://localhost/short",
+		})
+	}
+}
+
+func TestGetByFull(t *testing.T) {
 	ctx := _context.Background()
 
 	type fields struct {
@@ -139,7 +162,22 @@ func Test_storageURL_GetByFull(t *testing.T) {
 	}
 }
 
-func Test_storageURL_GetByShort(t *testing.T) {
+func BenchmarkGetByFull(b *testing.B) {
+	ctx := _context.Background()
+	l := logger.NewLogger()
+	s := NewInMemory(l)
+	s.Store(ctx, domain.URL{
+		Full:  "http://www.yandex.ru/verylongpath",
+		Short: "http://localhost/short",
+	})
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.GetByFull(ctx, "http://www.yandex.ru/verylongpath")
+	}
+}
+
+func TestGetByShort(t *testing.T) {
 	ctx := _context.Background()
 
 	type fields struct {
@@ -197,7 +235,22 @@ func Test_storageURL_GetByShort(t *testing.T) {
 	}
 }
 
-func TestMemoryMap_StoreBatch(t *testing.T) {
+func BenchmarkGetByShort(b *testing.B) {
+	ctx := _context.Background()
+	l := logger.NewLogger()
+	s := NewInMemory(l)
+	s.Store(ctx, domain.URL{
+		Full:  "http://www.yandex.ru/verylongpath",
+		Short: "http://localhost/short",
+	})
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.GetByShort(ctx, "http://localhost/short")
+	}
+}
+
+func TestStoreBatch(t *testing.T) {
 	ctx := _context.Background()
 
 	type fields struct {
@@ -242,7 +295,24 @@ func TestMemoryMap_StoreBatch(t *testing.T) {
 	}
 }
 
-func TestInMemory_GetUserURLs(t *testing.T) {
+func BenchmarkStoreBatch(b *testing.B) {
+	ctx := _context.Background()
+	l := logger.NewLogger()
+	s := NewInMemory(l)
+	mapa := map[string]domain.URL{
+		"1": {
+			Full:  "http://www.yandex.ru/verylongpath1",
+			Short: "short1",
+		},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.StoreBatch(ctx, mapa)
+	}
+}
+
+func TestGetUserURLs(t *testing.T) {
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	type fields struct {
 		items map[domain.ID]domain.URL
@@ -306,5 +376,23 @@ func TestInMemory_GetUserURLs(t *testing.T) {
 				t.Errorf("InMemory.GetUserURLs() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func BenchmarkGetUserURLs(b *testing.B) {
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+	s := &InMemory{
+		items: map[domain.ID]domain.URL{
+			"1": {
+				UserID: "DoomGuy",
+				Full:   "http://iddqd.com",
+				Short:  "idkfa",
+			},
+		},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.GetUserURLs(ctx, "DoomGuy")
 	}
 }

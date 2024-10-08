@@ -1,12 +1,15 @@
+// Модуль роутера приложения.
 package server
 
 import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/mikesvis/short/internal/middleware"
 )
 
+// Конструктор роутера, в нем регистрируются эндпоинты приложения и мидлвари.
 func NewRouter(h *Handler, middlewares ...func(http.Handler) http.Handler) *chi.Mux {
 	r := chi.NewMux()
 	r.Use(middlewares...)
@@ -19,6 +22,7 @@ func NewRouter(h *Handler, middlewares ...func(http.Handler) http.Handler) *chi.
 	})
 
 	r.Route("/", func(r chi.Router) {
+		r.Mount("/debug", chiMiddleware.Profiler())
 		r.Get("/ping", h.Ping)
 		r.Get("/{shortKey}", h.GetFullURL)
 		r.With(middleware.SignIn).Post("/", h.CreateShortURLText)

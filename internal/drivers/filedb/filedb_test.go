@@ -41,7 +41,17 @@ func TestNewStorageURL(t *testing.T) {
 	}
 }
 
-func Test_storageURL_Store(t *testing.T) {
+func BenchmarkNewStorageURL(b *testing.B) {
+	l := logger.NewLogger()
+	filepath := "dummyFile.json"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		NewFileDB(filepath, l)
+	}
+}
+
+func TestStore(t *testing.T) {
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 
 	tests := []struct {
@@ -97,6 +107,27 @@ func Test_storageURL_Store(t *testing.T) {
 	}
 }
 
+func BenchmarkStore(b *testing.B) {
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	tmpFile.Close()
+
+	s := &FileDB{
+		fileName: tmpFile.Name(),
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.Store(ctx, domain.URL{
+			UserID: "DoomGuy",
+			Full:   "http://www.yandex.ru/verylongpath",
+			Short:  "short",
+		})
+	}
+
+	os.Remove(tmpFile.Name())
+}
+
 func createAndSeedTestStorage(t *testing.T) string {
 	const JSONstring = `{"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72","short_url": "short","original_url":"http://www.yandex.ru/verylongpath"}`
 	tmpFile, err := os.CreateTemp(os.TempDir(), "dbtest*.json")
@@ -108,7 +139,7 @@ func createAndSeedTestStorage(t *testing.T) string {
 	return tmpFile.Name()
 }
 
-func Test_storageURL_GetByFull(t *testing.T) {
+func TestGetByFull(t *testing.T) {
 	ctx := _context.Background()
 
 	tests := []struct {
@@ -143,7 +174,25 @@ func Test_storageURL_GetByFull(t *testing.T) {
 	}
 }
 
-func Test_storageURL_GetByShort(t *testing.T) {
+func BenchmarkGetByFull(b *testing.B) {
+	ctx := _context.Background()
+	const JSONstring = `{"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72","short_url": "short","original_url":"http://www.yandex.ru/verylongpath"}`
+	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	tmpFile.Write([]byte(JSONstring))
+	tmpFile.Close()
+	s := &FileDB{
+		fileName: tmpFile.Name(),
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.GetByFull(ctx, "http://www.yandex.ru/verylongpath")
+	}
+
+	os.Remove(tmpFile.Name())
+}
+
+func TestGetByShort(t *testing.T) {
 	ctx := _context.Background()
 
 	tests := []struct {
@@ -178,7 +227,25 @@ func Test_storageURL_GetByShort(t *testing.T) {
 	}
 }
 
-func TestFileDB_StoreBatch(t *testing.T) {
+func BenchmarkGetByShort(b *testing.B) {
+	ctx := _context.Background()
+	const JSONstring = `{"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72","short_url": "short","original_url":"http://www.yandex.ru/verylongpath"}`
+	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	tmpFile.Write([]byte(JSONstring))
+	tmpFile.Close()
+	s := &FileDB{
+		fileName: tmpFile.Name(),
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.GetByShort(ctx, "short")
+	}
+
+	os.Remove(tmpFile.Name())
+}
+
+func TestStoreBatch(t *testing.T) {
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 
 	type want struct {
@@ -252,7 +319,30 @@ func TestFileDB_StoreBatch(t *testing.T) {
 	}
 }
 
-func TestFileDB_GetUserURLs(t *testing.T) {
+func BenchmarkStoreBatch(b *testing.B) {
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	tmpFile.Close()
+
+	s := &FileDB{
+		fileName: tmpFile.Name(),
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.StoreBatch(ctx, map[string]domain.URL{
+			"1": {
+				UserID: "DoomGuy",
+				Full:   "http://www.yandex.ru/verylongpath1",
+				Short:  "short1",
+			},
+		})
+	}
+
+	os.Remove(tmpFile.Name())
+}
+
+func TestGetUserURLs(t *testing.T) {
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
 	tmpFile.Close()
@@ -299,5 +389,28 @@ func TestFileDB_GetUserURLs(t *testing.T) {
 			assert.EqualValues(t, tt.want, result)
 		})
 	}
+	os.Remove(tmpFile.Name())
+}
+
+func BenchmarkGetUserURLs(b *testing.B) {
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	tmpFile.Close()
+
+	s := &FileDB{
+		fileName: tmpFile.Name(),
+	}
+	uuid.SetRand(rand.New(rand.NewSource(1)))
+	s.Store(ctx, domain.URL{
+		UserID: "DoomGuy",
+		Full:   "http://iddqd.com",
+		Short:  "idkfa",
+	})
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.GetUserURLs(ctx, "DoomGuy")
+	}
+
 	os.Remove(tmpFile.Name())
 }

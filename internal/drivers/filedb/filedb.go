@@ -1,3 +1,4 @@
+// Модуль storage для хранения в файлах.
 package filedb
 
 import (
@@ -5,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"reflect"
 
 	"github.com/google/uuid"
 	"github.com/mikesvis/short/internal/domain"
@@ -21,31 +21,34 @@ type fileDBItem struct {
 	Deleted     bool   `json:"is_deleted"`
 }
 
+// Storage для хранения в файлах, включает в себя путь к файлу и логгер.
 type FileDB struct {
 	fileName string
 	logger   *zap.SugaredLogger
 }
 
+// Конструктор storage для файла.
 func NewFileDB(fileName string, logger *zap.SugaredLogger) *FileDB {
 	s := &FileDB{fileName, logger}
 
 	return s
 }
 
+// Сохранение короткой ссылки. При сохранении происходит поиск на предмет уже существующей ссылки.
+// В случае если такая ссылка уже была ранее создана вернется ошибка.
 func (s *FileDB) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
-	emptyResult := domain.URL{}
 	old, err := s.GetByFull(ctx, u.Full)
 	if err != nil {
-		return emptyResult, nil
+		return domain.URL{}, nil
 	}
 
-	if old != emptyResult {
+	if (old != domain.URL{}) {
 		return old, errors.ErrConflict
 	}
 
 	file, err := os.OpenFile(s.fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		return emptyResult, err
+		return domain.URL{}, err
 	}
 	defer file.Close()
 
@@ -59,21 +62,14 @@ func (s *FileDB) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
 	}
 
 	if err := encoder.Encode(&item); err != nil {
-		return emptyResult, err
+		return domain.URL{}, err
 	}
 
 	return u, nil
 }
 
+// Поиск по полной ссылке.
 func (s *FileDB) GetByFull(ctx context.Context, fullURL string) (domain.URL, error) {
-	return s.findInFile("OriginalURL", fullURL)
-}
-
-func (s *FileDB) GetByShort(ctx context.Context, shortURL string) (domain.URL, error) {
-	return s.findInFile("ShortURL", shortURL)
-}
-
-func (s *FileDB) findInFile(field, needle string) (domain.URL, error) {
 	file, err := os.OpenFile(s.fileName, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return domain.URL{}, err
@@ -90,7 +86,7 @@ func (s *FileDB) findInFile(field, needle string) (domain.URL, error) {
 			return domain.URL{}, err
 		}
 
-		if getField(&i, field) != needle {
+		if i.OriginalURL != fullURL {
 			continue
 		}
 
@@ -105,18 +101,47 @@ func (s *FileDB) findInFile(field, needle string) (domain.URL, error) {
 	return domain.URL{}, nil
 }
 
-func getField(i *fileDBItem, field string) string {
-	r := reflect.ValueOf(i)
-	f := reflect.Indirect(r).FieldByName(field)
-	return string(f.String())
+// Поиск по короткой ссылке.
+func (s *FileDB) GetByShort(ctx context.Context, shortURL string) (domain.URL, error) {
+	file, err := os.OpenFile(s.fileName, os.O_RDONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return domain.URL{}, err
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+
+	for {
+		var i fileDBItem
+		if err := decoder.Decode(&i); err == io.EOF {
+			break
+		} else if err != nil {
+			return domain.URL{}, err
+		}
+
+		if i.ShortURL != shortURL {
+			continue
+		}
+
+		return domain.URL{
+			UserID:  i.UserID,
+			Full:    i.OriginalURL,
+			Short:   i.ShortURL,
+			Deleted: i.Deleted,
+		}, nil
+	}
+
+	return domain.URL{}, nil
 }
 
+// Пинг хранилки в файле.
 func (s *FileDB) Ping(ctx context.Context) error {
 	_, error := os.Stat(s.fileName)
 
 	return error
 }
 
+// Пакетное сохранение коротких URL. В методе используется поиск уже существующих URL.
 func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[string]domain.URL, error) {
 	// в мапе хранится полный урл = ключ корреляции
 	wantToStore := make(map[string]string, len(us))
@@ -194,6 +219,7 @@ func (s *FileDB) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[
 	return us, nil
 }
 
+// Получение ссылок, созданных пользоваетелем.
 func (s *FileDB) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error) {
 	file, err := os.OpenFile(s.fileName, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {

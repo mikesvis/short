@@ -1,3 +1,4 @@
+// Модуль storage для хранения в базе.
 package postgres
 
 import (
@@ -28,11 +29,13 @@ type userUpdateItem struct {
 	ShortKey string
 }
 
+// Storage для хранения в базе, включает в себя указатель на sqlx.DB и логгер.
 type Postgres struct {
 	db     *sqlx.DB
 	logger *zap.SugaredLogger
 }
 
+// Конструктор storage в базе. При инициализации будут созданы недостающие таблицы.
 func NewPostgres(db *sqlx.DB, logger *zap.SugaredLogger) *Postgres {
 	err := bootstrapDB(db)
 	if err != nil {
@@ -56,6 +59,8 @@ func bootstrapDB(db *sqlx.DB) error {
 	return err
 }
 
+// Сохранение короткой ссылки. При сохранении происходит поиск на предмет уже существующей ссылки.
+// В случае если такая ссылка уже была ранее создана вернется ошибка.
 func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
 	emptyResult := domain.URL{}
 
@@ -99,6 +104,7 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 	return old, errors.ErrConflict
 }
 
+// Поиск по полной ссылке.
 func (s *Postgres) GetByFull(ctx context.Context, fullURL string) (domain.URL, error) {
 	emptyResult := domain.URL{}
 
@@ -128,6 +134,7 @@ func (s *Postgres) GetByFull(ctx context.Context, fullURL string) (domain.URL, e
 	return domain.URL{UserID: p.UserID, Full: p.FullURL, Short: p.ShortKey, Deleted: p.Deleted}, nil
 }
 
+// Поиск по короткой ссылке.
 func (s *Postgres) GetByShort(ctx context.Context, shortURL string) (domain.URL, error) {
 	emptyResult := domain.URL{}
 
@@ -157,10 +164,12 @@ func (s *Postgres) GetByShort(ctx context.Context, shortURL string) (domain.URL,
 	return domain.URL{UserID: p.UserID, Full: p.FullURL, Short: p.ShortKey, Deleted: p.Deleted}, nil
 }
 
+// Пинг базы.
 func (s *Postgres) Ping(ctx context.Context) error {
 	return s.db.PingContext(ctx)
 }
 
+// Пакетное сохранение коротких URL. В методе используется поиск уже существующих URL.
 func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[string]domain.URL, error) {
 	// в мапере хранится полный урл = ключ корреляции
 	mapper := make(map[string]string, len(us))
@@ -238,10 +247,12 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	return us, nil
 }
 
+// Закрытие соединения к базе.
 func (s *Postgres) Close() error {
 	return s.db.Close()
 }
 
+// Получение ссылок, созданных пользоваетелем.
 func (s *Postgres) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error) {
 	if len(userID) == 0 {
 		return nil, nil
@@ -285,7 +296,7 @@ func (s *Postgres) fetchUserURLs(rows *sqlx.Rows) ([]domain.URL, error) {
 	return result, nil
 }
 
-// Вот тут у меня масса вопросов к 1-1 к тому насколько это вообще все правильно
+// Пакетное удаление коротких ссылок
 func (s *Postgres) DeleteBatch(ctx context.Context, userID string, pack []string) {
 	inputCh := s.generator(ctx, userID, pack)
 	channels := s.fanOut(ctx, inputCh)

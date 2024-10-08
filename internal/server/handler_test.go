@@ -101,6 +101,26 @@ func TestGetFullURL(t *testing.T) {
 	}
 }
 
+func BenchmarkGetFullURL(b *testing.B) {
+	c := testConfig()
+	l := logger.NewLogger()
+	s := inmemory.NewInMemory(l)
+	s.Store(_context.Background(), domain.URL{
+		Full:  "http://www.yandex.ru/verylongpath",
+		Short: "short",
+	})
+
+	request := httptest.NewRequest("GET", "/short", nil)
+	w := httptest.NewRecorder()
+	handler := NewHandler(c, s)
+	handle := http.HandlerFunc(handler.GetFullURL)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handle(w, request)
+	}
+}
+
 func TestCreateShortURLText(t *testing.T) {
 	c := testConfig()
 	l := logger.NewLogger()
@@ -218,6 +238,28 @@ func TestCreateShortURLText(t *testing.T) {
 
 			assert.Contains(t, string(response), tt.want.body)
 		})
+	}
+}
+
+func BenchmarkCreateShortURLText(b *testing.B) {
+	c := testConfig()
+	l := logger.NewLogger()
+	s := inmemory.NewInMemory(l)
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+	s.Store(ctx, domain.URL{
+		Full:   "http://www.yandex.ru/verylongpath",
+		UserID: "Doomguy",
+		Short:  "short",
+	})
+
+	request := httptest.NewRequest("POST", "/", strings.NewReader("http://www.yandex.ru/verylongpath")).WithContext(ctx)
+	w := httptest.NewRecorder()
+	handler := NewHandler(c, s)
+	handle := http.HandlerFunc(handler.CreateShortURLText)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handle(w, request)
 	}
 }
 
@@ -362,7 +404,29 @@ func TestCreateShortURLJSON(t *testing.T) {
 	}
 }
 
-func TestHandler_CreateShortURLBatch(t *testing.T) {
+func BenchmarkCreateShortURLJSON(b *testing.B) {
+	c := testConfig()
+	l := logger.NewLogger()
+	s := inmemory.NewInMemory(l)
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+	s.Store(_context.WithValue(ctx, context.UserIDContextKey, "DoomGuy"), domain.URL{
+		UserID: "DoomGuy",
+		Full:   "http://www.yandex.ru/verylongpath",
+		Short:  "short",
+	})
+
+	request := httptest.NewRequest("POST", "/api/shorten", strings.NewReader(`{"url":"http://www.yandex.ru/verylongpath"}`)).WithContext(ctx)
+	w := httptest.NewRecorder()
+	handler := NewHandler(c, s)
+	handle := http.HandlerFunc(handler.CreateShortURLText)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handle(w, request)
+	}
+}
+
+func TestCreateShortURLBatch(t *testing.T) {
 	c := testConfig()
 	l := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
@@ -441,7 +505,31 @@ func TestHandler_CreateShortURLBatch(t *testing.T) {
 	}
 }
 
-func TestHandler_GetUserURLs(t *testing.T) {
+func BenchmarkCreateShortURLBatch(b *testing.B) {
+	c := testConfig()
+	l := logger.NewLogger()
+	s := inmemory.NewInMemory(l)
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+	s.StoreBatch(ctx, map[string]domain.URL{
+		"1": {
+			UserID: "DoomGuy",
+			Full:   "http://www.yandex.ru/verylongpath",
+			Short:  "short",
+		},
+	})
+
+	request := httptest.NewRequest("POST", "/api/shorten/batch", strings.NewReader(`[{"correlation_id":"1","original_url":"http://www.yandex.ru/verylongpath"}]`)).WithContext(ctx)
+	w := httptest.NewRecorder()
+	handler := NewHandler(c, s)
+	handle := http.HandlerFunc(handler.CreateShortURLBatch)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handle(w, request)
+	}
+}
+
+func TestGetUserURLs(t *testing.T) {
 	c := testConfig()
 	l := logger.NewLogger()
 	s := inmemory.NewInMemory(l)
@@ -526,5 +614,27 @@ func TestHandler_GetUserURLs(t *testing.T) {
 				assert.JSONEq(t, string(response), tt.want.body)
 			}
 		})
+	}
+}
+
+func BenchmarkGetUserURLs(b *testing.B) {
+	c := testConfig()
+	l := logger.NewLogger()
+	s := inmemory.NewInMemory(l)
+	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+	s.Store(ctx, domain.URL{
+		UserID: "DoomGuy",
+		Full:   "http://www.yandex.ru/verylongpath",
+		Short:  "short",
+	})
+
+	request := httptest.NewRequest("POST", "/api/user/urls", strings.NewReader(``)).WithContext(_context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"))
+	w := httptest.NewRecorder()
+	handler := NewHandler(c, s)
+	handle := http.HandlerFunc(handler.GetUserURLs)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handle(w, request)
 	}
 }

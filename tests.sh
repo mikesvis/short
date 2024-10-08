@@ -11,10 +11,10 @@
 ~/bin/shortenertestbeta  -test.v -test.run=^TestIteration9$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -file-storage-path=/tmp/fsgo.json;
 ~/bin/shortenertestbeta  -test.v -test.run=^TestIteration10$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
 ~/bin/shortenertestbeta  -test.v -test.run=^TestIteration11$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
-~/bin/shortenertestbeta  -test.v -test.run=^TestIteration12$ -binary-path=cmd/shortener/shortener -source-path=./ -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
-~/bin/shortenertestbeta  -test.v -test.run=^TestIteration13$ -binary-path=cmd/shortener/shortener -source-path=./ -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
-~/bin/shortenertestbeta  -test.v -test.run=^TestIteration14$ -binary-path=cmd/shortener/shortener -source-path=./ -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
-~/bin/shortenertestbeta  -test.v -test.run=^TestIteration15$ -binary-path=cmd/shortener/shortener -source-path=./ -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
-
-
-
+~/bin/shortenertestbeta  -test.v -test.run=^TestIteration12$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
+~/bin/shortenertestbeta  -test.v -test.run=^TestIteration13$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
+~/bin/shortenertestbeta  -test.v -test.run=^TestIteration14$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
+~/bin/shortenertestbeta  -test.v -test.run=^TestIteration15$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
+~/bin/shortenertestbeta  -test.v -test.run=^TestIteration16$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
+~/bin/shortenertestbeta  -test.v -test.run=^TestIteration17$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
+~/bin/shortenertestbeta  -test.v -test.run=^TestIteration18$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";

@@ -1,3 +1,4 @@
+// Пакет обработки jwt.
 package jwt
 
 import (
@@ -7,15 +8,23 @@ import (
 	"github.com/mikesvis/short/internal/errors"
 )
 
+// SecretPass используется для шифровки/дешифровки.
 const SecretPass = "mySecretPass"
+
+// Имя куки авторизации.
 const AuthorizationCookieName = "Authorization-JWT"
+
+// Время жизни куки авторизации.
 const TokenDuration = time.Hour * 24 * 30
 
+// Claims в JWT.
 type Claims struct {
+	// ID пользователя.
 	UserID string `json:"userId"`
 	_jwt.RegisteredClaims
 }
 
+// Получение ID пользователя из токена.
 func GetUserIDFromTokenString(tokenString string) (string, error) {
 	claims := &Claims{}
 
@@ -40,6 +49,7 @@ func GetUserIDFromTokenString(tokenString string) (string, error) {
 	return "", err
 }
 
+// Создание токена авторизации.
 func CreateTokenString(userID string, exp time.Time) (string, error) {
 	claims := &Claims{
 		UserID: userID,

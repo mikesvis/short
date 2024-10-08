@@ -49,3 +49,9 @@ func TestGetRandkey(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkGetRandkey(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		GetRandkey(5)
+	}
+}

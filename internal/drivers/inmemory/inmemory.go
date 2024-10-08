@@ -1,3 +1,4 @@
+// Модуль storage для хранения в памяти.
 package inmemory
 
 import (
@@ -9,16 +10,20 @@ import (
 	"go.uber.org/zap"
 )
 
+// Storage для хранения в памяти, включает в себя мапу с элементами ссылок и логгер.
 type InMemory struct {
 	items  map[domain.ID]domain.URL
 	logger *zap.SugaredLogger
 }
 
+// Конструктор storage в памяти.
 func NewInMemory(logger *zap.SugaredLogger) *InMemory {
 	items := make(map[domain.ID]domain.URL)
 	return &InMemory{items, logger}
 }
 
+// Сохранение короткой ссылки. При сохранении происходит поиск на предмет уже существующей ссылки.
+// В случае если такая ссылка уже была ранее создана вернется ошибка.
 func (s *InMemory) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
 	for _, v := range s.items {
 		if v.Full == u.Full {
@@ -29,6 +34,7 @@ func (s *InMemory) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 	return u, nil
 }
 
+// Поиск по полной ссылке.
 func (s *InMemory) GetByFull(ctx context.Context, fullURL string) (domain.URL, error) {
 	for _, v := range s.items {
 		if string(v.Full) != fullURL {
@@ -41,6 +47,7 @@ func (s *InMemory) GetByFull(ctx context.Context, fullURL string) (domain.URL, e
 	return domain.URL{}, nil
 }
 
+// Поиск по короткой ссылке.
 func (s *InMemory) GetByShort(ctx context.Context, shortURL string) (domain.URL, error) {
 	for _, v := range s.items {
 		if string(v.Short) != shortURL {
@@ -53,6 +60,7 @@ func (s *InMemory) GetByShort(ctx context.Context, shortURL string) (domain.URL,
 	return domain.URL{}, nil
 }
 
+// Пакетное сохранение коротких URL. В методе используется поиск уже существующих URL.
 func (s *InMemory) StoreBatch(ctx context.Context, us map[string]domain.URL) (map[string]domain.URL, error) {
 	// в мапе хранится полный урл = ключ корреляции
 	wantToStore := make(map[string]string, len(us))
@@ -95,6 +103,7 @@ func (s *InMemory) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	return us, nil
 }
 
+// Получение ссылок, созданных пользоваетелем.
 func (s *InMemory) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error) {
 	result := make([]domain.URL, 0, 20)
 	for _, v := range s.items {

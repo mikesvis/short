@@ -1,3 +1,4 @@
+// Модуль генерации рандомных строк
 package keygen
 
 import (
@@ -5,6 +6,8 @@ import (
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+// Длина строки при генерации
 const KeyLength = 5
 
 // Получение рандомного ключа/строки
