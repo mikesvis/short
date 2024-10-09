@@ -23,10 +23,17 @@ type App struct {
 
 // Конструктор приложения, здесь инициализируются все зависимости:
 // конфиг приложения, логгер, storage, роутер. Также здесь регистрируются middleware приложения.
-func New() *App {
-	config := config.NewConfig()
-	logger := logger.NewLogger()
-	storage := storage.NewStorage(config, logger)
+func New(config *config.Config) *App {
+	logger, err := logger.NewLogger()
+	if err != nil {
+		panic(err)
+	}
+
+	storage, err := storage.NewStorage(config, logger)
+	if err != nil {
+		panic(err)
+	}
+
 	handler := server.NewHandler(config, storage)
 	router := server.NewRouter(
 		handler,
@@ -49,12 +56,15 @@ func New() *App {
 }
 
 // Запуск приложения.
-func (a *App) Run() {
+func (a *App) Run() error {
 	a.logger.Infow("Config initialized", "config", a.config)
 	if _, isCloser := a.storage.(storage.StorageCloser); isCloser {
 		defer a.storage.(storage.StorageCloser).Close()
 	}
 	if err := http.ListenAndServe(string(a.config.ServerAddress), a.router); err != nil {
-		a.logger.Fatalw(err.Error(), "event", "start server")
+		a.logger.Errorf(err.Error(), "event", "start server")
+		return err
 	}
+
+	return nil
 }

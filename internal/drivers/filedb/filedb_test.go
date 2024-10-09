@@ -16,7 +16,7 @@ import (
 )
 
 func TestNewStorageURL(t *testing.T) {
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	type args struct {
 		filePath string
 	}
@@ -42,7 +42,7 @@ func TestNewStorageURL(t *testing.T) {
 }
 
 func BenchmarkNewStorageURL(b *testing.B) {
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	filepath := "dummyFile.json"
 
 	b.ResetTimer()
@@ -89,7 +89,9 @@ func TestStore(t *testing.T) {
 			}
 
 			// Storing
-			s.Store(ctx, tt.args)
+			result, err := s.Store(ctx, tt.args)
+			require.NoError(t, err)
+			assert.Equal(t, tt.args, result)
 
 			// Reading temp file
 			file, err := os.OpenFile(s.fileName, os.O_RDONLY, 0666)
@@ -410,6 +412,36 @@ func BenchmarkGetUserURLs(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		s.GetUserURLs(ctx, "DoomGuy")
+	}
+
+	os.Remove(tmpFile.Name())
+}
+
+func TestFileDB_Ping(t *testing.T) {
+	ctx := _context.Background()
+	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	tmpFile.Close()
+
+	s := &FileDB{
+		fileName: tmpFile.Name(),
+	}
+
+	tests := []struct {
+		name    string
+		args    _context.Context
+		wantErr bool
+	}{
+		{
+			name:    "Ping storage",
+			args:    ctx,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := s.Ping(tt.args)
+			require.NoError(t, err)
+		})
 	}
 
 	os.Remove(tmpFile.Name())

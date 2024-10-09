@@ -90,7 +90,7 @@ func (h *Handler) CreateShortURLText(w http.ResponseWriter, r *http.Request) {
 	item := domain.URL{
 		UserID: ctx.Value(context.UserIDContextKey).(string),
 		Full:   URL,
-		Short:  keygen.GetRandkey(keygen.KeyLength),
+		Short:  h.storage.GetRandkey(keygen.KeyLength),
 	}
 	status := http.StatusConflict
 
@@ -143,7 +143,7 @@ func (h *Handler) CreateShortURLJSON(w http.ResponseWriter, r *http.Request) {
 	item := domain.URL{
 		UserID: ctx.Value(context.UserIDContextKey).(string),
 		Full:   URL,
-		Short:  keygen.GetRandkey(keygen.KeyLength),
+		Short:  h.storage.GetRandkey(keygen.KeyLength),
 	}
 	status := http.StatusConflict
 
@@ -210,7 +210,7 @@ func (h *Handler) CreateShortURLBatch(w http.ResponseWriter, r *http.Request) {
 		pack[string(v.CorrelationID)] = domain.URL{
 			UserID: ctx.Value(context.UserIDContextKey).(string),
 			Full:   string(v.OriginalURL),
-			Short:  keygen.GetRandkey(keygen.KeyLength),
+			Short:  h.storage.GetRandkey(keygen.KeyLength),
 		}
 	}
 

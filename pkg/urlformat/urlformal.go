@@ -13,12 +13,12 @@ func FormatURL(linkServerAddress, shortKey string) string {
 }
 
 // Получение и проверка валидности Url
-func ValidateURL(URL string) error {
-	if len(URL) == 0 {
+func ValidateURL(urlToValidate string) error {
+	if len(urlToValidate) == 0 {
 		return fmt.Errorf("URL can not be empty")
 	}
 
-	_, err := url.ParseRequestURI(URL)
+	_, err := url.ParseRequestURI(urlToValidate)
 	if err != nil {
 		return fmt.Errorf("URL is not an URL format, %s given", err)
 	}
@@ -27,6 +27,6 @@ func ValidateURL(URL string) error {
 }
 
 // Чистка URL
-func SanitizeURL(URL string) string {
-	return strings.Trim(URL, " ")
+func SanitizeURL(urlToTrim string) string {
+	return strings.Trim(urlToTrim, " ")
 }

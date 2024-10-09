@@ -26,8 +26,8 @@ func SignIn(next http.Handler) http.Handler {
 		// кука есть
 		if err == nil {
 			tokenString := authCookie.Value
-
-			userID, err := jwt.GetUserIDFromTokenString(tokenString)
+			var userID string
+			userID, err = jwt.GetUserIDFromTokenString(tokenString)
 
 			// все ОК, пишем в контекст userID
 			if err == nil {

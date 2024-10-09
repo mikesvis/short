@@ -14,7 +14,7 @@ import (
 )
 
 func TestNewStorageURL(t *testing.T) {
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	type args struct {
 		items map[domain.ID]domain.URL
 	}
@@ -40,7 +40,7 @@ func TestNewStorageURL(t *testing.T) {
 }
 
 func BenchmarkNewStorageURL(b *testing.B) {
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -92,7 +92,7 @@ func TestStore(t *testing.T) {
 
 func BenchmarkStore(b *testing.B) {
 	ctx := _context.Background()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := NewInMemory(l)
 
 	b.ResetTimer()
@@ -164,7 +164,7 @@ func TestGetByFull(t *testing.T) {
 
 func BenchmarkGetByFull(b *testing.B) {
 	ctx := _context.Background()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := NewInMemory(l)
 	s.Store(ctx, domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
@@ -237,7 +237,7 @@ func TestGetByShort(t *testing.T) {
 
 func BenchmarkGetByShort(b *testing.B) {
 	ctx := _context.Background()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := NewInMemory(l)
 	s.Store(ctx, domain.URL{
 		Full:  "http://www.yandex.ru/verylongpath",
@@ -297,7 +297,7 @@ func TestStoreBatch(t *testing.T) {
 
 func BenchmarkStoreBatch(b *testing.B) {
 	ctx := _context.Background()
-	l := logger.NewLogger()
+	l, _ := logger.NewLogger()
 	s := NewInMemory(l)
 	mapa := map[string]domain.URL{
 		"1": {

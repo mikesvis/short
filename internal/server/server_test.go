@@ -46,15 +46,15 @@ func testServer() *httptest.Server {
 		FileStoragePath: "",
 		DatabaseDSN:     "",
 	}
-	l := logger.NewLogger()
-	s := storage.NewStorage(c, l)
+	l, _ := logger.NewLogger()
+	s, _ := storage.NewStorage(c, l)
 	h := NewHandler(c, s)
 	return httptest.NewServer(NewRouter(h, middleware.RequestResponseLogger(l)))
 }
 
 // я немного очумел пока это сделал
-func generateTestCookiesByUser(UserID string) []*http.Cookie {
-	startTokenString, _ := jwt.CreateTokenString(UserID, time.Now().Add(5*time.Minute))
+func generateTestCookiesByUser(userID string) []*http.Cookie {
+	startTokenString, _ := jwt.CreateTokenString(userID, time.Now().Add(5*time.Minute))
 	startCookie := middleware.CreateAuthCookie(startTokenString, time.Now().Add(5*time.Minute))
 	cookies := []*http.Cookie{}
 	cookies = append(cookies, startCookie)
