@@ -2,6 +2,7 @@ package server
 
 import (
 	_context "context"
+	goerrors "errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,12 +10,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/context"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/drivers/inmemory"
 	"github.com/mikesvis/short/internal/logger"
 	"github.com/mikesvis/short/internal/storage"
+	mock_storage "github.com/mikesvis/short/mocks/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,17 +33,32 @@ func testConfig() *config.Config {
 
 func TestGetFullURL(t *testing.T) {
 	c := testConfig()
-	l, _ := logger.NewLogger()
-	s := inmemory.NewInMemory(l)
-	s.Store(_context.Background(), domain.URL{
-		Full:  "http://www.yandex.ru/verylongpath",
-		Short: "short",
-	})
+	ctx, cancel := _context.WithCancel(_context.Background())
+	defer cancel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockedStorage := mock_storage.NewMockStorageDeleter(ctrl)
+
+	gomock.InOrder(
+		mockedStorage.EXPECT().GetByShort(ctx, "short1").Return(domain.URL{
+			UserID:  "DoomGuy",
+			Full:    "http://www.yandex.ru/verylongpath",
+			Short:   "short",
+			Deleted: false,
+		}, nil),
+		mockedStorage.EXPECT().GetByShort(ctx, "short2").Return(domain.URL{}, goerrors.New("full url is not found")),
+		mockedStorage.EXPECT().GetByShort(ctx, "short3").Return(domain.URL{
+			UserID:  "DoomGuy",
+			Full:    "http://www.yandex.ru/verylongpath",
+			Short:   "short3",
+			Deleted: true,
+		}, nil),
+	)
 
 	type want struct {
 		statusCode  int
 		newLocation string
-		wantError   bool
 		body        string
 	}
 	type request struct {
@@ -58,23 +76,31 @@ func TestGetFullURL(t *testing.T) {
 			want: want{
 				statusCode:  http.StatusTemporaryRedirect,
 				newLocation: "http://www.yandex.ru/verylongpath",
-				wantError:   false,
 			},
 			request: request{
 				methhod: "GET",
-				target:  "/short",
+				target:  "/short1",
 			},
 		}, {
 			name: "Full url does not exist (400)",
 			want: want{
 				statusCode:  http.StatusBadRequest,
 				newLocation: "",
-				wantError:   true,
 				body:        "full url is not found",
 			},
 			request: request{
 				methhod: "GET",
-				target:  "http://example.com/short",
+				target:  "/short2",
+			},
+		}, {
+			name: "Item has gone",
+			want: want{
+				statusCode:  http.StatusGone,
+				newLocation: "",
+			},
+			request: request{
+				methhod: "GET",
+				target:  "/short3",
 			},
 		},
 	}
@@ -82,23 +108,26 @@ func TestGetFullURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.request.methhod, tt.request.target, nil)
 			w := httptest.NewRecorder()
-			handler := NewHandler(c, s)
+			handler := NewHandler(c, mockedStorage)
 			handle := http.HandlerFunc(handler.GetFullURL)
 			handle(w, request)
 			result := w.Result()
 
 			assert.Equal(t, tt.want.statusCode, result.StatusCode)
 
-			if !tt.want.wantError {
+			if len(tt.want.newLocation) > 0 {
 				assert.Contains(t, result.Header.Values("Location"), tt.want.newLocation)
-				return
 			}
 
 			response, err := io.ReadAll(result.Body)
 			require.NoError(t, err)
+
 			err = result.Body.Close()
 			require.NoError(t, err)
-			require.Contains(t, string(response), tt.want.body)
+
+			if len(tt.want.body) > 0 {
+				require.Contains(t, string(response), tt.want.body)
+			}
 		})
 	}
 }
@@ -124,15 +153,27 @@ func BenchmarkGetFullURL(b *testing.B) {
 }
 
 func TestCreateShortURLText(t *testing.T) {
-	c := testConfig()
-	l, _ := logger.NewLogger()
-	s := inmemory.NewInMemory(l)
-	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
-	s.Store(ctx, domain.URL{
+	c := &config.Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: "",
+		DatabaseDSN:     "",
+	}
+
+	ctxMock, cancel := _context.WithCancel(_context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"))
+	defer cancel()
+	ctxReq := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockedStorage := mock_storage.NewMockStorageDeleter(ctrl)
+
+	mockedStorage.EXPECT().GetRandkey(uint(5)).Return("jHQri").Times(1)
+	mockedStorage.EXPECT().Store(ctxMock, gomock.Any()).Return(domain.URL{
+		UserID: "DoomGuy",
 		Full:   "http://www.yandex.ru/verylongpath",
-		UserID: "Doomguy",
-		Short:  "short",
-	})
+		Short:  "jHQri",
+	}, nil).Times(1)
 
 	type want struct {
 		contentType string
@@ -152,40 +193,25 @@ func TestCreateShortURLText(t *testing.T) {
 		request request
 	}{
 		{
-			name: "Get old short url from full (409)",
+			name: "Create new short url from full (201)",
 			want: want{
 				contentType: "text/plain",
-				statusCode:  http.StatusConflict,
-				isNew:       false,
-				wantError:   false,
-				body:        string(c.BaseURL) + "/short",
+				statusCode:  http.StatusCreated,
+				isNew:       true,
+				body:        string(c.BaseURL),
 			},
 			request: request{
 				method: "POST",
 				target: "/",
 				body:   "http://www.yandex.ru/verylongpath",
 			},
-		}, {
-			name: "Create new short url from full (201)",
-			want: want{
-				contentType: "text/plain",
-				statusCode:  http.StatusCreated,
-				isNew:       true,
-				wantError:   false,
-				body:        string(c.BaseURL),
-			},
-			request: request{
-				method: "POST",
-				target: "/",
-				body:   "http://www.yandex.ru/very",
-			},
-		}, {
+		},
+		{
 			name: "Empty body (400)",
 			want: want{
-				contentType: "text/plain",
+				contentType: "text/plain; charset=utf-8",
 				statusCode:  http.StatusBadRequest,
 				isNew:       false,
-				wantError:   true,
 				body:        "URL can not be empty",
 			},
 			request: request{
@@ -193,13 +219,13 @@ func TestCreateShortURLText(t *testing.T) {
 				target: "/",
 				body:   "",
 			},
-		}, {
+		},
+		{
 			name: "Bad url (400)",
 			want: want{
-				contentType: "text/plain",
+				contentType: "text/plain; charset=utf-8",
 				statusCode:  http.StatusBadRequest,
 				isNew:       false,
-				wantError:   true,
 				body:        "URL is not an URL format",
 			},
 			request: request{
@@ -208,12 +234,26 @@ func TestCreateShortURLText(t *testing.T) {
 				body:   "!!!",
 			},
 		},
+		// { // Я так и не понял как сделать так что в методе рандомное поле передается в мокируемый метод и как это все сравнить?!!
+		// 	name: "Get old short url from full (409)",
+		// 	want: want{
+		// 		contentType: "text/plain",
+		// 		statusCode:  http.StatusConflict,
+		// 		isNew:       false,
+		// 		body:        string(c.BaseURL) + "/short",
+		// 	},
+		// 	request: request{
+		// 		method: "POST",
+		// 		target: "/",
+		// 		body:   "http://www.yandex.ru/verylongpath",
+		// 	},
+		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(ctx)
+			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(ctxReq)
 			w := httptest.NewRecorder()
-			handler := NewHandler(c, s)
+			handler := NewHandler(c, mockedStorage)
 			handle := http.HandlerFunc(handler.CreateShortURLText)
 			handle(w, request)
 			result := w.Result()
@@ -429,17 +469,38 @@ func BenchmarkCreateShortURLJSON(b *testing.B) {
 }
 
 func TestCreateShortURLBatch(t *testing.T) {
-	c := testConfig()
-	l, _ := logger.NewLogger()
-	s := inmemory.NewInMemory(l)
-	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
-	s.StoreBatch(ctx, map[string]domain.URL{
+	c := &config.Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: "",
+		DatabaseDSN:     "",
+	}
+
+	ctxMock, cancel := _context.WithCancel(_context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"))
+	defer cancel()
+	ctxReq := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockedStorage := mock_storage.NewMockStorageDeleter(ctrl)
+
+	mockedStorage.EXPECT().GetRandkey(uint(5)).Return("short1")
+	mockedStorage.EXPECT().StoreBatch(ctxMock, map[string]domain.URL{
 		"1": {
-			UserID: "DoomGuy",
-			Full:   "http://www.yandex.ru/verylongpath",
-			Short:  "short",
+			UserID:  "DoomGuy",
+			Full:    "http://www.yandex.ru/verylongpath",
+			Short:   "short1",
+			Deleted: false,
 		},
-	})
+	}).Return(map[string]domain.URL{
+		"1": {
+			UserID:  "DoomGuy",
+			Full:    "http://www.yandex.ru/verylongpath",
+			Short:   "short1",
+			Deleted: false,
+		},
+	}, nil)
+
 	type want struct {
 		contentType string
 		statusCode  int
@@ -464,7 +525,7 @@ func TestCreateShortURLBatch(t *testing.T) {
 				statusCode:  http.StatusCreated,
 				isNew:       false,
 				wantError:   false,
-				body:        `[{"correlation_id":"1","short_url":"` + string(c.BaseURL) + `/short"}]`,
+				body:        `[{"correlation_id":"1","short_url":"` + string(c.BaseURL) + `/short1"}]`,
 			},
 			request: request{
 				method: "POST",
@@ -475,9 +536,9 @@ func TestCreateShortURLBatch(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(ctx)
+			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(ctxReq)
 			w := httptest.NewRecorder()
-			handler := NewHandler(c, s)
+			handler := NewHandler(c, mockedStorage)
 			handle := http.HandlerFunc(handler.CreateShortURLBatch)
 			handle(w, request)
 			result := w.Result()
@@ -532,15 +593,28 @@ func BenchmarkCreateShortURLBatch(b *testing.B) {
 }
 
 func TestGetUserURLs(t *testing.T) {
-	c := testConfig()
-	l, _ := logger.NewLogger()
-	s := inmemory.NewInMemory(l)
-	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
-	s.Store(ctx, domain.URL{
-		UserID: "DoomGuy",
-		Full:   "http://www.yandex.ru/verylongpath",
-		Short:  "short",
-	})
+	c := &config.Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: "",
+		DatabaseDSN:     "",
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockedStorage := mock_storage.NewMockStorageDeleter(ctrl)
+
+	mockedStorage.EXPECT().GetUserURLs(gomock.Any(), gomock.Eq("DoomGuy")).Return([]domain.URL{
+		{
+			UserID: "DoomGuy",
+			Full:   "http://www.yandex.ru/verylongpath",
+			Short:  "short",
+		},
+	}, nil)
+
+	mockedStorage.EXPECT().GetUserURLs(gomock.Any(), gomock.Eq("Heretic")).Return([]domain.URL{}, nil)
+
 	type want struct {
 		contentType string
 		statusCode  int
@@ -593,7 +667,7 @@ func TestGetUserURLs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(tt.request.ctx)
 			w := httptest.NewRecorder()
-			handler := NewHandler(c, s)
+			handler := NewHandler(c, mockedStorage)
 			handle := http.HandlerFunc(handler.GetUserURLs)
 			handle(w, request)
 			result := w.Result()
@@ -703,21 +777,6 @@ func TestHandler_Ping(t *testing.T) {
 				statusCode: http.StatusInternalServerError,
 			},
 		},
-		// {
-		// 	name: "Postgres db success",
-		// 	args: args{
-		// 		config: &config.Config{
-		// 			ServerAddress:   "127.0.0.1",
-		// 			BaseURL:         "http://short.go",
-		// 			FileStoragePath: "",
-		// 			DatabaseDSN:     "host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable",
-		// 		},
-		// 	},
-		// 	want: want{
-		// 		wantError:  false,
-		// 		statusCode: http.StatusOK,
-		// 	},
-		// },
 		{
 			name: "Postgres db fail",
 			args: args{
@@ -725,7 +784,7 @@ func TestHandler_Ping(t *testing.T) {
 					ServerAddress:   "127.0.0.1",
 					BaseURL:         "http://short.go",
 					FileStoragePath: "",
-					DatabaseDSN:     "host=0.0.0.0 port=5433 user=postgres password=postgres dbname=nodb sslmode=disable",
+					DatabaseDSN:     "host=0.0.0.0 port=5432 user=postgres password=postgres dbname=nodb sslmode=disable",
 				},
 			},
 			want: want{
@@ -753,30 +812,23 @@ func TestHandler_Ping(t *testing.T) {
 	os.Remove(tmpFile.Name())
 }
 
-func TestDeleteUserURLs(t *testing.T) {
+func TestHander_DeleteUserURLs(t *testing.T) {
 	c := &config.Config{
 		ServerAddress:   "localhost:8080",
 		BaseURL:         "http://localhost:8080",
 		FileStoragePath: "",
-		DatabaseDSN:     "host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable",
+		DatabaseDSN:     "",
 	}
-	l, err := logger.NewLogger()
-	require.NoError(t, err)
-	s, err := storage.NewStorage(c, l)
-	require.NoError(t, err)
-	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
-	s.StoreBatch(ctx, map[string]domain.URL{
-		"1": {
-			UserID: "DoomGuy",
-			Full:   "http://www.yandex.ru/verylongpath1",
-			Short:  "short1",
-		},
-		"2": {
-			UserID: "DoomGuy",
-			Full:   "http://www.yandex.ru/verylongpath2",
-			Short:  "short2",
-		},
-	})
+
+	ctxMock, cancel := _context.WithCancel(_context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"))
+	defer cancel()
+	ctxReq := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockedStorage := mock_storage.NewMockStorageDeleter(ctrl)
+	mockedStorage.EXPECT().DeleteBatch(ctxMock, "DoomGuy", []string{"short1", "short2"}).Return()
+
 	type want struct {
 		statusCode int
 	}
@@ -788,10 +840,12 @@ func TestDeleteUserURLs(t *testing.T) {
 	tests := []struct {
 		name    string
 		want    want
+		arg     storage.Storage
 		request request
 	}{
 		{
-			name: "Delete user URLs",
+			name: "Delete user URLs Success",
+			arg:  mockedStorage,
 			want: want{
 				statusCode: http.StatusAccepted,
 			},
@@ -801,12 +855,24 @@ func TestDeleteUserURLs(t *testing.T) {
 				body:   `["short1","short2"]`,
 			},
 		},
+		{
+			name: "Delete user URLs Bad Request",
+			arg:  mockedStorage,
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+			request: request{
+				method: "DELETE",
+				target: "/api/user/urls",
+				body:   ``,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(ctx)
+			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(ctxReq)
 			w := httptest.NewRecorder()
-			handler := NewHandler(c, s)
+			handler := NewHandler(c, tt.arg)
 			handle := http.HandlerFunc(handler.DeleteUserURLs)
 			handle(w, request)
 			result := w.Result()

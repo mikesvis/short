@@ -13,6 +13,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/errors"
+	"github.com/mikesvis/short/internal/keygen"
 	"go.uber.org/zap"
 )
 
@@ -426,4 +427,9 @@ func (s *Postgres) deleteBatchByIds(ctx context.Context, inputCh chan string) {
 		s.logger.Errorw(`Error occured while updating rows`, err, `query`, query)
 		return
 	}
+}
+
+// Получение рандомного ключа
+func (s *Postgres) GetRandkey(n uint) string {
+	return keygen.GetRandkey(n)
 }

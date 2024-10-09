@@ -31,6 +31,9 @@ type Storage interface {
 
 	// Получение ссылок пользователя.
 	GetUserURLs(ctx context.Context, userID string) ([]domain.URL, error)
+
+	// Генерация случайного ключа
+	GetRandkey(n uint) string
 }
 
 // Интерфейс обеспечивающий метод для прозвона хранилки.

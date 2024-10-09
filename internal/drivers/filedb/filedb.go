@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/errors"
+	"github.com/mikesvis/short/internal/keygen"
 	"go.uber.org/zap"
 )
 
@@ -250,4 +251,9 @@ func (s *FileDB) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, 
 	}
 
 	return result, nil
+}
+
+// Получение рандомного ключа
+func (s *FileDB) GetRandkey(n uint) string {
+	return keygen.GetRandkey(n)
 }
