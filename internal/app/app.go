@@ -61,7 +61,15 @@ func (a *App) Run() error {
 	if _, isCloser := a.storage.(storage.StorageCloser); isCloser {
 		defer a.storage.(storage.StorageCloser).Close()
 	}
-	if err := http.ListenAndServe(string(a.config.ServerAddress), a.router); err != nil {
+
+	var err error
+	if a.config.EnableHTTPS {
+		err = http.ListenAndServeTLS(a.config.ServerAddress, a.config.ServerCertPath, a.config.ServerKeyPath, a.router)
+	} else {
+		err = http.ListenAndServe(a.config.ServerAddress, a.router)
+	}
+
+	if err != nil {
 		a.logger.Errorf(err.Error(), "event", "start server")
 		return err
 	}
