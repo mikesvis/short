@@ -18,6 +18,9 @@ func TestNew(t *testing.T) {
 				BaseURL:         "http://localhost:8080",
 				FileStoragePath: "",
 				DatabaseDSN:     "",
+				EnableHTTPS:     false,
+				ServerKeyPath:   "",
+				ServerCertPath:  "",
 			},
 		},
 	}
