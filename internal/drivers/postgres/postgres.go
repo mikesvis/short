@@ -13,6 +13,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/errors"
+	"github.com/mikesvis/short/internal/keygen"
 	"go.uber.org/zap"
 )
 
@@ -36,13 +37,13 @@ type Postgres struct {
 }
 
 // Конструктор storage в базе. При инициализации будут созданы недостающие таблицы.
-func NewPostgres(db *sqlx.DB, logger *zap.SugaredLogger) *Postgres {
+func NewPostgres(db *sqlx.DB, logger *zap.SugaredLogger) (*Postgres, error) {
 	err := bootstrapDB(db)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return &Postgres{db, logger}
+	return &Postgres{db, logger}, nil
 }
 
 func bootstrapDB(db *sqlx.DB) error {
@@ -426,4 +427,9 @@ func (s *Postgres) deleteBatchByIds(ctx context.Context, inputCh chan string) {
 		s.logger.Errorw(`Error occured while updating rows`, err, `query`, query)
 		return
 	}
+}
+
+// Получение рандомного ключа
+func (s *Postgres) GetRandkey(n uint) string {
+	return keygen.GetRandkey(n)
 }

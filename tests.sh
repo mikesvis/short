@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# go build -o ./cmd/staticlint/staticlint ./cmd/staticlint/*.go
+# go build -o ./cmd/shortener/shortener ./cmd/shortener/*.go
+
 ~/bin/shortenertestbeta  -test.v -test.run=^TestIteration1$ -binary-path=cmd/shortener/shortener;
 ~/bin/shortenertestbeta  -test.v -test.run=^TestIteration2$ -binary-path=cmd/shortener/shortener -source-path=./;
 ~/bin/shortenertestbeta  -test.v -test.run=^TestIteration3$ -binary-path=cmd/shortener/shortener -source-path=./;
@@ -18,3 +21,4 @@
 ~/bin/shortenertestbeta  -test.v -test.run=^TestIteration16$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
 ~/bin/shortenertestbeta  -test.v -test.run=^TestIteration17$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
 ~/bin/shortenertestbeta  -test.v -test.run=^TestIteration18$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";
+~/bin/shortenertestbeta  -test.v -test.run=^TestIteration19$ -binary-path=cmd/shortener/shortener -source-path=./ -server-port=8081 -database-dsn="host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable";

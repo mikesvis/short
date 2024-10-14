@@ -6,12 +6,12 @@ import (
 )
 
 // Конструктор логгера для приложения. Используется zap.
-func NewLogger() *zap.SugaredLogger {
+func NewLogger() (*zap.SugaredLogger, error) {
 	logger, err := zap.NewProduction()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer logger.Sync()
 
-	return logger.Sugar()
+	return logger.Sugar(), nil
 }
