@@ -11,6 +11,7 @@ import (
 	"github.com/mikesvis/short/internal/domain"
 	"github.com/mikesvis/short/internal/logger"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewStorageURL(t *testing.T) {
@@ -54,11 +55,15 @@ func TestStore(t *testing.T) {
 	type fields struct {
 		items map[domain.ID]domain.URL
 	}
+	type want struct {
+		items   map[domain.ID]domain.URL
+		wantErr bool
+	}
 	tests := []struct {
 		name   string
 		fields fields
 		args   domain.URL
-		want   map[domain.ID]domain.URL
+		want   want
 	}{
 		{
 			name: "Store item",
@@ -66,15 +71,41 @@ func TestStore(t *testing.T) {
 				items: map[domain.ID]domain.URL{},
 			},
 			args: domain.URL{
+				UserID:  "",
+				Full:    "http://www.yandex.ru/verylongpath",
+				Short:   "http://localhost/short",
+				Deleted: false,
+			},
+			want: want{
+				items: map[domain.ID]domain.URL{
+					"52fdfc07-2182-454f-963f-5f0f9a621d72": {
+						UserID:  "",
+						Full:    "http://www.yandex.ru/verylongpath",
+						Short:   "http://localhost/short",
+						Deleted: false,
+					},
+				},
+				wantErr: false,
+			},
+		},
+		{
+			name: "Has conflict",
+			fields: fields{
+				items: map[domain.ID]domain.URL{
+					"52fdfc07-2182-454f-963f-5f0f9a621d72": {
+						Full:    "http://www.yandex.ru/verylongpath",
+						Short:   "http://localhost/short",
+						Deleted: false,
+					},
+				},
+			},
+			args: domain.URL{
 				Full:  "http://www.yandex.ru/verylongpath",
 				Short: "http://localhost/short",
 			},
-			want: map[domain.ID]domain.URL{
-				"52fdfc07-2182-454f-963f-5f0f9a621d72": {
-					Full:    "http://www.yandex.ru/verylongpath",
-					Short:   "http://localhost/short",
-					Deleted: false,
-				},
+			want: want{
+				items:   nil,
+				wantErr: true,
 			},
 		},
 	}
@@ -84,8 +115,12 @@ func TestStore(t *testing.T) {
 			s := &InMemory{
 				items: tt.fields.items,
 			}
-			s.Store(ctx, tt.args)
-			assert.EqualValues(t, tt.want, s.items)
+			_, err := s.Store(ctx, tt.args)
+			if tt.want.wantErr {
+				require.Error(t, err)
+				return
+			}
+			assert.EqualValues(t, s.items, tt.want.items)
 		})
 	}
 }
@@ -281,6 +316,31 @@ func TestStoreBatch(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Nothing to store",
+			fields: fields{
+				items: map[domain.ID]domain.URL{
+					"2": {
+						Full:    "http://www.yandex.ru/verylongpath2",
+						Short:   "short2",
+						Deleted: false,
+					},
+				},
+			},
+			args: map[string]domain.URL{
+				"2": {
+					Full:  "http://www.yandex.ru/verylongpath2",
+					Short: "short2",
+				},
+			},
+			want: map[string]domain.URL{
+				"2": {
+					Full:    "http://www.yandex.ru/verylongpath2",
+					Short:   "short2",
+					Deleted: false,
+				},
+			},
+		},
 	}
 	uuid.SetRand(rand.New(rand.NewSource(1)))
 	for _, tt := range tests {
@@ -394,5 +454,54 @@ func BenchmarkGetUserURLs(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		s.GetUserURLs(ctx, "DoomGuy")
+	}
+}
+
+func TestInMemory_GetRandkey(t *testing.T) {
+	l, _ := logger.NewLogger()
+	type want struct {
+		typeOf  string
+		len     int
+		isEmpty bool
+	}
+	tests := []struct {
+		name string
+		arg  uint
+		want want
+	}{
+		{
+			name: "Rand key is string of length",
+			arg:  5,
+			want: want{
+				typeOf:  "",
+				len:     5,
+				isEmpty: false,
+			},
+		}, {
+			name: "Rand key is empty sting of zero length",
+			arg:  0,
+			want: want{
+				typeOf:  "",
+				len:     0,
+				isEmpty: true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &InMemory{
+				items:  make(map[domain.ID]domain.URL),
+				logger: l,
+			}
+			randKey := s.GetRandkey(tt.arg)
+			assert.IsType(t, "", randKey)
+			assert.Len(t, randKey, tt.want.len)
+			if !tt.want.isEmpty {
+				assert.NotEmpty(t, s.GetRandkey(tt.arg))
+				return
+			}
+
+			assert.Empty(t, s.GetRandkey(tt.arg))
+		})
 	}
 }

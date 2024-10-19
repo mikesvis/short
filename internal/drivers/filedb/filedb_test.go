@@ -55,9 +55,10 @@ func TestStore(t *testing.T) {
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 
 	tests := []struct {
-		name string
-		args domain.URL
-		want string
+		name    string
+		args    domain.URL
+		want    string
+		wantErr bool
 	}{
 		{
 			name: "Store item",
@@ -73,15 +74,26 @@ func TestStore(t *testing.T) {
 				"original_url":"http://www.yandex.ru/verylongpath",
 				"is_deleted":false
 			}`,
+			wantErr: false,
+		},
+		{
+			name: "Has conflict on store",
+			args: domain.URL{
+				UserID: "Heretic",
+				Full:   "http://www.yandex.ru/verylongpath",
+				Short:  "short",
+			},
+			want:    ``,
+			wantErr: true,
 		},
 	}
 	uuid.SetRand(rand.New(rand.NewSource(1)))
+	// Creating temp file
+	tmpFile, err := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	require.Nil(t, err)
+	tmpFile.Close()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Creating temp file
-			tmpFile, err := os.CreateTemp(os.TempDir(), "dbtest*.json")
-			require.Nil(t, err)
-			tmpFile.Close()
 
 			// Using temp file in storage
 			s := &FileDB{
@@ -90,6 +102,12 @@ func TestStore(t *testing.T) {
 
 			// Storing
 			result, err := s.Store(ctx, tt.args)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
 			require.NoError(t, err)
 			assert.Equal(t, tt.args, result)
 
@@ -103,10 +121,11 @@ func TestStore(t *testing.T) {
 
 			assert.JSONEq(t, tt.want, fileString)
 
-			// Removing temp file
-			os.Remove(tmpFile.Name())
 		})
 	}
+
+	// Removing temp file
+	os.Remove(tmpFile.Name())
 }
 
 func BenchmarkStore(b *testing.B) {
@@ -445,4 +464,53 @@ func TestFileDB_Ping(t *testing.T) {
 	}
 
 	os.Remove(tmpFile.Name())
+}
+
+func TestFileDB_GetRandkey(t *testing.T) {
+	l, _ := logger.NewLogger()
+	type want struct {
+		typeOf  string
+		len     int
+		isEmpty bool
+	}
+	tests := []struct {
+		name string
+		arg  uint
+		want want
+	}{
+		{
+			name: "Rand key is string of length",
+			arg:  5,
+			want: want{
+				typeOf:  "",
+				len:     5,
+				isEmpty: false,
+			},
+		}, {
+			name: "Rand key is empty sting of zero length",
+			arg:  0,
+			want: want{
+				typeOf:  "",
+				len:     0,
+				isEmpty: true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &FileDB{
+				fileName: "/tmp/dummyFile.db",
+				logger:   l,
+			}
+			randKey := s.GetRandkey(tt.arg)
+			assert.IsType(t, "", randKey)
+			assert.Len(t, randKey, tt.want.len)
+			if !tt.want.isEmpty {
+				assert.NotEmpty(t, s.GetRandkey(tt.arg))
+				return
+			}
+
+			assert.Empty(t, s.GetRandkey(tt.arg))
+		})
+	}
 }

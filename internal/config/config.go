@@ -3,7 +3,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 
@@ -112,7 +111,6 @@ func parseFlags(c *Config) {
 }
 
 func parseFile(c *Config, fp string) {
-	fmt.Println(c)
 	file, err := os.Open(fp)
 	if err != nil {
 		log.Fatalf("Unable open config file %v", err)
