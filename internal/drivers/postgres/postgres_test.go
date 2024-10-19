@@ -24,7 +24,7 @@ func TestNewPostgres(t *testing.T) {
 		{
 			name: "New storage is of type",
 			args: args{
-				databaseDSN: "postgres://postgres:postgres@127.0.0.1:5432/praktikum?sslmode=disable",
+				databaseDSN: "postgres://postgres:postgres@0.0.0.0:5432/praktikum?sslmode=disable",
 			},
 			want: &Postgres{},
 		},
