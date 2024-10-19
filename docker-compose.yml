@@ -1,10 +1,8 @@
 services:
   postgres:
     container_name: postgres
-    image: postgres:latest
+    image: postgres
     environment:
-      POSTGRES_DB: "short"
+      POSTGRES_DB: "praktikum"
       POSTGRES_USER: "postgres"
       POSTGRES_PASSWORD: "postgres"
-    ports:
-      - "5433:5432"

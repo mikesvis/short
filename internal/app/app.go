@@ -2,7 +2,12 @@
 package app
 
 import (
+	"context"
+	"log"
 	"net/http"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mikesvis/short/internal/config"
@@ -19,6 +24,7 @@ type App struct {
 	logger  *zap.SugaredLogger
 	storage storage.Storage
 	router  *chi.Mux
+	server  *http.Server
 }
 
 // Конструктор приложения, здесь инициализируются все зависимости:
@@ -47,11 +53,17 @@ func New(config *config.Config) *App {
 		),
 	)
 
+	server := &http.Server{
+		Addr:    config.ServerAddress,
+		Handler: router,
+	}
+
 	return &App{
 		config,
 		logger,
 		storage,
 		router,
+		server,
 	}
 }
 
@@ -62,17 +74,28 @@ func (a *App) Run() error {
 		defer a.storage.(storage.StorageCloser).Close()
 	}
 
-	var err error
-	if a.config.EnableHTTPS {
-		err = http.ListenAndServeTLS(a.config.ServerAddress, a.config.ServerCertPath, a.config.ServerKeyPath, a.router)
-	} else {
-		err = http.ListenAndServe(a.config.ServerAddress, a.router)
-	}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
 
-	if err != nil {
-		a.logger.Errorf(err.Error(), "event", "start server")
+	go func() {
+		if a.config.EnableHTTPS {
+			if err := a.server.ListenAndServeTLS(a.config.ServerCertPath, a.config.ServerKeyPath); err != http.ErrServerClosed {
+				a.logger.Fatalf("Failed to start HTTPS server: %v", err)
+			}
+		} else {
+			if err := a.server.ListenAndServe(); err != http.ErrServerClosed {
+				a.logger.Fatalf("Failed to start HTTP server: %v", err)
+			}
+		}
+	}()
+
+	<-ctx.Done()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := a.server.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Server Shutdown Failed:%+v", err)
 		return err
 	}
-
+	log.Println("Server exited properly")
 	return nil
 }
