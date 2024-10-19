@@ -11,6 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func getDataBaseDSN() string {
+	return "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
+}
+
 func TestNewPostgres(t *testing.T) {
 	l, _ := logger.NewLogger()
 	type args struct {
@@ -24,7 +28,7 @@ func TestNewPostgres(t *testing.T) {
 		{
 			name: "New storage is of type",
 			args: args{
-				databaseDSN: "postgres://postgres:postgres@0.0.0.0:5432/praktikum?sslmode=disable",
+				databaseDSN: getDataBaseDSN(),
 			},
 			want: &Postgres{},
 		},
