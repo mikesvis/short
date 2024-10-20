@@ -56,6 +56,7 @@ func bootstrapDB(db *sqlx.DB) error {
 			is_deleted boolean NOT NULL DEFAULT false
 		)
 	`
+	// Как проверить эту строку? :(
 	_, err := db.Exec(createTableShort)
 	return err
 }
@@ -65,6 +66,7 @@ func bootstrapDB(db *sqlx.DB) error {
 func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) {
 	emptyResult := domain.URL{}
 
+	// Как проверить эту строку? :(
 	stmt, err := s.db.PrepareContext(ctx, `INSERT INTO shorts (id, user_id, full_url, short_key) VALUES ($1, $2, $3, $4) ON CONFLICT (short_key) DO NOTHING`)
 	if err != nil {
 		s.logger.Errorw(`Cant prepare db query`, err)
@@ -80,8 +82,10 @@ func (s *Postgres) Store(ctx context.Context, u domain.URL) (domain.URL, error) 
 		ShortKey: u.Short,
 	}
 
+	// Как проверить эту строку на ошибку? При тестах пересечение по ключу не выскакивает, хотя и не сохраняет :(
 	_, err = stmt.ExecContext(ctx, item.ID, item.UserID, item.FullURL, item.ShortKey)
 	if err != nil {
+		s.logger.Infof("old %v", err)
 		var pgErr *pgconn.PgError
 		if _goerrors.As(err, &pgErr) && pgErr.Code != pgerrcode.UniqueViolation {
 			// Ошибка непонятная
@@ -110,6 +114,7 @@ func (s *Postgres) GetByFull(ctx context.Context, fullURL string) (domain.URL, e
 	emptyResult := domain.URL{}
 
 	// пробуем получить по полному урлу
+	// Как проверить эту строку? :(
 	stmt, err := s.db.PrepareContext(ctx, `SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE "full_url" = $1`)
 	if err != nil {
 		s.logger.Errorw(`Cant prepare db query`, err)
@@ -140,6 +145,7 @@ func (s *Postgres) GetByShort(ctx context.Context, shortURL string) (domain.URL,
 	emptyResult := domain.URL{}
 
 	// пробуем получить по короткому урлу
+	// Как проверить эту строку? :(
 	stmt, err := s.db.PrepareContext(ctx, `SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE "short_key" = $1`)
 	if err != nil {
 		s.logger.Errorw(`Cant prepare db query`, err)
@@ -186,6 +192,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	}
 
 	// какое-то неведомое колдунство? Иначе where in не сделать
+	// как протестить err?
 	query, args, err := sqlx.In("SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE full_url IN (?)", fullUrls)
 	if err != nil {
 		s.logger.Errorw(`Error occured while composing query`, err)
@@ -194,6 +201,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	query = s.db.Rebind(query)
 
 	// ищем существующие
+	// как протестить err?
 	existingItems := []postgresDBItem{}
 	err = s.db.SelectContext(ctx, &existingItems, query, args...)
 	if err != nil {
@@ -233,6 +241,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	// сделаем добавление через транзакцию
 	tx := s.db.MustBeginTx(ctx, nil)
 	defer tx.Rollback()
+	// как протестить err?
 	_, err = tx.NamedExecContext(ctx, `INSERT INTO shorts (id, user_id, full_url, short_key) VALUES (:id, :user_id, :full_url, :short_key)`, newItems)
 	if err != nil {
 		s.logger.Errorw(`Error occured while batch insert`, err)
@@ -240,6 +249,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	}
 
 	err = tx.Commit()
+	// как протестить err?
 	if err != nil {
 		s.logger.Errorw(`Error occured while commiting transaction`, err)
 		return nil, err
