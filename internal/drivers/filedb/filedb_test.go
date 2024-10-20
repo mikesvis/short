@@ -54,18 +54,25 @@ func BenchmarkNewStorageURL(b *testing.B) {
 func TestStore(t *testing.T) {
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 
+	type args struct {
+		item     domain.URL
+		mustFail bool
+	}
 	tests := []struct {
 		name    string
-		args    domain.URL
+		args    args
 		want    string
 		wantErr bool
 	}{
 		{
 			name: "Store item",
-			args: domain.URL{
-				UserID: "DoomGuy",
-				Full:   "http://www.yandex.ru/verylongpath",
-				Short:  "short",
+			args: args{
+				item: domain.URL{
+					UserID: "DoomGuy",
+					Full:   "http://www.yandex.ru/verylongpath",
+					Short:  "short",
+				},
+				mustFail: false,
 			},
 			want: `{
 				"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72",
@@ -78,10 +85,26 @@ func TestStore(t *testing.T) {
 		},
 		{
 			name: "Has conflict on store",
-			args: domain.URL{
-				UserID: "Heretic",
-				Full:   "http://www.yandex.ru/verylongpath",
-				Short:  "short",
+			args: args{
+				item: domain.URL{
+					UserID: "Heretic",
+					Full:   "http://www.yandex.ru/verylongpath",
+					Short:  "short",
+				},
+				mustFail: false,
+			},
+			want:    ``,
+			wantErr: true,
+		},
+		{
+			name: "No file exists",
+			args: args{
+				item: domain.URL{
+					UserID: "Heretic",
+					Full:   "http://www.yandex.ru/verylongpath",
+					Short:  "short",
+				},
+				mustFail: true,
 			},
 			want:    ``,
 			wantErr: true,
@@ -96,12 +119,18 @@ func TestStore(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			// Using temp file in storage
+			fileName := tmpFile.Name()
+
+			// Faking not existing file
+			if tt.args.mustFail {
+				fileName = os.TempDir() + "/!"
+			}
 			s := &FileDB{
-				fileName: tmpFile.Name(),
+				fileName: fileName,
 			}
 
 			// Storing
-			result, err := s.Store(ctx, tt.args)
+			result, err := s.Store(ctx, tt.args.item)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -109,7 +138,7 @@ func TestStore(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, tt.args, result)
+			assert.Equal(t, tt.args.item, result)
 
 			// Reading temp file
 			file, err := os.OpenFile(s.fileName, os.O_RDONLY, 0666)

@@ -113,13 +113,13 @@ func parseFlags(c *Config) {
 func parseFile(c *Config, fp string) {
 	file, err := os.Open(fp)
 	if err != nil {
-		log.Fatalf("Unable open config file %v", err)
+		log.Panicf("Unable open config file %v", err)
 	}
 	defer file.Close()
 
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(c)
 	if err != nil {
-		log.Fatalf("Unable parse config file %v", err)
+		log.Panicf("Unable parse config file %v", err)
 	}
 }

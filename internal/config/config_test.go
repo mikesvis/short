@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,5 +31,47 @@ func TestNew(t *testing.T) {
 			config := NewConfig()
 			assert.EqualValues(t, tt.want, config)
 		})
+	}
+}
+
+func Test_parseFile(t *testing.T) {
+	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	tmpFile.Write([]byte(`{"ssssooooomemmemm,stif`))
+	tmpFile.Close()
+
+	type args struct {
+		c  *Config
+		fp string
+	}
+	tests := []struct {
+		name       string
+		args       args
+		wantOutput string
+		wantErr    bool
+	}{
+		{
+			name: "Cant open file",
+			args: args{
+				c:  &Config{},
+				fp: "!",
+			},
+			wantOutput: "Unable open config file",
+			wantErr:    true,
+		},
+		{
+			name: "Cant decode file",
+			args: args{
+				c:  &Config{},
+				fp: tmpFile.Name(),
+			},
+			wantOutput: "Unable parse config file",
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		if tt.wantErr {
+			assert.Panics(t, func() { parseFile(tt.args.c, tt.args.fp) })
+		}
 	}
 }

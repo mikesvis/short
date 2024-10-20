@@ -9,17 +9,20 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/mikesvis/short/internal/context"
 	"github.com/mikesvis/short/internal/domain"
+	"github.com/mikesvis/short/internal/keygen"
 	"github.com/mikesvis/short/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
-// Вот эта хрень потому что я не допетрил как победить автотесты
-// Поэтому я у себя ставлю хост 0.0.0.0 а для долбанного github postgres
+// Вот эта хрень нужна потому что я не допетрил как победить автотесты на гитхаб
+// Поэтому я у себя ставлю хост 0.0.0.0 а для долбанного github указан в тестах хост postgres
 // Если знаешь как решить - скажи
-// Дело в то что при автотестах поднимается контейнер и к нему можно подключиться по
+// Дело в том что при автотестах поднимается контейнер и к нему можно подключиться по
 // postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable
-// Как сделать также без изменения файла hosts я хз, поэтому и проблема
+// Как сделать также без изменения файла hosts локально я хз, поэтому и проблема
+// Пробовал указывать и networks и host/domain в docker-compose - не помогает
 func getDataBaseDSN() string {
 	// return "postgres://postgres:postgres@0.0.0.0:5432/praktikum?sslmode=disable"
 	return "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
@@ -114,6 +117,269 @@ func TestPostgres_Store(t *testing.T) {
 			}
 
 			assert.EqualValues(t, tt.want, got)
+		})
+	}
+}
+
+func TestFileDB_GetRandkey(t *testing.T) {
+	l, _ := logger.NewLogger()
+	db, _ := sqlx.Open("postgres", getDataBaseDSN())
+	defer db.Close()
+	type want struct {
+		typeOf  string
+		len     int
+		isEmpty bool
+	}
+	tests := []struct {
+		name string
+		arg  uint
+		want want
+	}{
+		{
+			name: "Rand key is string of length",
+			arg:  5,
+			want: want{
+				typeOf:  "",
+				len:     5,
+				isEmpty: false,
+			},
+		}, {
+			name: "Rand key is empty sting of zero length",
+			arg:  0,
+			want: want{
+				typeOf:  "",
+				len:     0,
+				isEmpty: true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Postgres{
+				db:     db,
+				logger: l,
+			}
+			randKey := s.GetRandkey(tt.arg)
+			assert.IsType(t, "", randKey)
+			assert.Len(t, randKey, tt.want.len)
+			if !tt.want.isEmpty {
+				assert.NotEmpty(t, s.GetRandkey(tt.arg))
+				return
+			}
+
+			assert.Empty(t, s.GetRandkey(tt.arg))
+		})
+	}
+}
+
+func TestPostgres_GetByFull(t *testing.T) {
+	rndString1 := keygen.GetRandkey(5)
+	rndString2 := keygen.GetRandkey(5)
+	l, _ := logger.NewLogger()
+	db, _ := sqlx.Open("postgres", getDataBaseDSN())
+	defer db.Close()
+	s := &Postgres{
+		db:     db,
+		logger: l,
+	}
+	s.Store(
+		_context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"),
+		domain.URL{
+			UserID:  "DoomGuy",
+			Full:    `https://` + rndString2 + `.com`,
+			Short:   rndString2,
+			Deleted: false,
+		},
+	)
+	type fields struct {
+		db     *sqlx.DB
+		logger *zap.SugaredLogger
+	}
+	type args struct {
+		ctx     _context.Context
+		fullURL string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    domain.URL
+		wantErr bool
+	}{
+		{
+			name: "Is not found by full - empty result",
+			fields: fields{
+				db:     db,
+				logger: l,
+			},
+			args: args{
+				ctx:     _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"),
+				fullURL: `https://` + rndString1 + `.com`,
+			},
+			want:    domain.URL{},
+			wantErr: false,
+		},
+		{
+			name: "Is found by full",
+			fields: fields{
+				db:     db,
+				logger: l,
+			},
+			args: args{
+				ctx:     _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"),
+				fullURL: `https://` + rndString2 + `.com`,
+			},
+			want: domain.URL{
+				UserID:  "DoomGuy",
+				Full:    `https://` + rndString2 + `.com`,
+				Short:   rndString2,
+				Deleted: false,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Postgres{
+				db:     tt.fields.db,
+				logger: tt.fields.logger,
+			}
+			got, err := s.GetByFull(tt.args.ctx, tt.args.fullURL)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestPostgres_GetByShort(t *testing.T) {
+	rndString1 := keygen.GetRandkey(5)
+	rndString2 := keygen.GetRandkey(5)
+	l, _ := logger.NewLogger()
+	db, _ := sqlx.Open("postgres", getDataBaseDSN())
+	defer db.Close()
+	s := &Postgres{
+		db:     db,
+		logger: l,
+	}
+	s.Store(
+		_context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"),
+		domain.URL{
+			UserID:  "DoomGuy",
+			Full:    `https://` + rndString2 + `.com`,
+			Short:   rndString2,
+			Deleted: false,
+		},
+	)
+	type fields struct {
+		db     *sqlx.DB
+		logger *zap.SugaredLogger
+	}
+	type args struct {
+		ctx      _context.Context
+		shortURL string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    domain.URL
+		wantErr bool
+	}{
+		{
+			name: "Is not found by short - empty result",
+			fields: fields{
+				db:     db,
+				logger: l,
+			},
+			args: args{
+				ctx:      _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"),
+				shortURL: rndString1,
+			},
+			want:    domain.URL{},
+			wantErr: false,
+		},
+		{
+			name: "Is found by short",
+			fields: fields{
+				db:     db,
+				logger: l,
+			},
+			args: args{
+				ctx:      _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"),
+				shortURL: rndString2,
+			},
+			want: domain.URL{
+				UserID:  "DoomGuy",
+				Full:    `https://` + rndString2 + `.com`,
+				Short:   rndString2,
+				Deleted: false,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Postgres{
+				db:     tt.fields.db,
+				logger: tt.fields.logger,
+			}
+			got, err := s.GetByShort(tt.args.ctx, tt.args.shortURL)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestPostgres_Ping(t *testing.T) {
+	ctx := _context.Background()
+	l, _ := logger.NewLogger()
+	db, _ := sqlx.Open("postgres", getDataBaseDSN())
+	type fields struct {
+		db     *sqlx.DB
+		logger *zap.SugaredLogger
+	}
+	type args struct {
+		ctx _context.Context
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Db pings",
+			fields: fields{
+				db:     db,
+				logger: l,
+			},
+			args:    args{ctx: ctx},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Postgres{
+				db:     tt.fields.db,
+				logger: tt.fields.logger,
+			}
+			err := s.Ping(tt.args.ctx)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
 		})
 	}
 }
