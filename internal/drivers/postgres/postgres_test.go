@@ -24,8 +24,8 @@ import (
 // Как сделать также без изменения файла hosts локально я хз, поэтому и проблема
 // Пробовал указывать и networks и host/domain в docker-compose - не помогает
 func getDataBaseDSN() string {
-	// return "postgres://postgres:postgres@0.0.0.0:5432/praktikum?sslmode=disable"
-	return "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
+	return "postgres://postgres:postgres@0.0.0.0:5432/praktikum?sslmode=disable"
+	// return "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
 }
 
 func TestNewPostgres(t *testing.T) {
