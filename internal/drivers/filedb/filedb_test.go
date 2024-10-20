@@ -193,9 +193,10 @@ func TestGetByFull(t *testing.T) {
 	ctx := _context.Background()
 
 	tests := []struct {
-		name string
-		args string
-		want domain.URL
+		name    string
+		args    string
+		want    domain.URL
+		wantErr bool
 	}{
 		{
 			name: "Is found by full",
@@ -204,19 +205,36 @@ func TestGetByFull(t *testing.T) {
 				Full:  "http://www.yandex.ru/verylongpath",
 				Short: "short",
 			},
-		}, {
-			name: "Is not found by full",
-			args: "http://localhost/",
-			want: domain.URL{},
+			wantErr: false,
+		},
+		{
+			name:    "Is not found by full",
+			args:    "http://localhost/",
+			want:    domain.URL{},
+			wantErr: false,
+		},
+		{
+			name:    "Is error",
+			args:    "http://localhost/",
+			want:    domain.URL{},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpFile := createAndSeedTestStorage(t)
+			if tt.wantErr {
+				tmpFile = ""
+			}
 			s := &FileDB{
 				fileName: tmpFile,
 			}
-			item, _ := s.GetByFull(ctx, tt.args)
+			item, err := s.GetByFull(ctx, tt.args)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
 			assert.IsType(t, tt.want, item)
 			assert.EqualValues(t, tt.want, item)
 			os.Remove(tmpFile)
