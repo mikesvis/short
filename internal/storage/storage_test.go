@@ -21,8 +21,8 @@ import (
 // postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable
 // Как сделать также без изменения файла hosts я хз, поэтому и проблема
 func getDataBaseDSN() string {
-	return "postgres://postgres:postgres@0.0.0.0:5432/praktikum?sslmode=disable"
-	// return "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
+	// return "postgres://postgres:postgres@0.0.0.0:5432/praktikum?sslmode=disable"
+	return "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
 }
 
 func TestNewStorage(t *testing.T) {

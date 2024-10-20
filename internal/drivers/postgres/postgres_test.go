@@ -383,3 +383,194 @@ func TestPostgres_Ping(t *testing.T) {
 		})
 	}
 }
+
+func TestPostgres_StoreBatch(t *testing.T) {
+	l, _ := logger.NewLogger()
+	db, _ := sqlx.Open("postgres", getDataBaseDSN())
+	type args struct {
+		ctx _context.Context
+		us  map[string]domain.URL
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    map[string]domain.URL
+		wantErr bool
+	}{
+		{
+			name: "Batch store items",
+			args: args{
+				ctx: _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"),
+				us: map[string]domain.URL{
+					"1": {
+						UserID: "DoomGuy",
+						Full:   "http://www.yandex.ru/verylongpath1",
+						Short:  "short1",
+					},
+				},
+			},
+			want: map[string]domain.URL{
+				"1": {
+					UserID: "DoomGuy",
+					Full:   "http://www.yandex.ru/verylongpath1",
+					Short:  "short1",
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Postgres{
+				db:     db,
+				logger: l,
+			}
+			got, err := s.StoreBatch(tt.args.ctx, tt.args.us)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestPostgres_Close(t *testing.T) {
+	l, _ := logger.NewLogger()
+	db, _ := sqlx.Open("postgres", getDataBaseDSN())
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{
+			name:    "Successful Close",
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Postgres{
+				db:     db,
+				logger: l,
+			}
+			err := s.Close()
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestPostgres_GetUserURLs(t *testing.T) {
+	rndString1 := keygen.GetRandkey(5)
+	l, _ := logger.NewLogger()
+	db, _ := sqlx.Open("postgres", getDataBaseDSN())
+	s := &Postgres{
+		db:     db,
+		logger: l,
+	}
+	s.Store(
+		_context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"),
+		domain.URL{
+			UserID:  "DoomGuy",
+			Full:    `https://` + rndString1 + `.com`,
+			Short:   rndString1,
+			Deleted: false,
+		},
+	)
+	type args struct {
+		ctx    _context.Context
+		userID string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []domain.URL
+		wantErr bool
+	}{
+		{
+			name: "User id is unkown",
+			args: args{
+				ctx:    _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"),
+				userID: "",
+			},
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name: "Empty user links",
+			args: args{
+				ctx:    _context.WithValue(_context.Background(), context.UserIDContextKey, "Heretic"),
+				userID: "Heretic",
+			},
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name: "Has user links",
+			args: args{
+				ctx:    _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"),
+				userID: "DoomGuy",
+			},
+			want: []domain.URL{
+				{
+					UserID:  "DoomGuy",
+					Full:    `https://` + rndString1 + `.com`,
+					Short:   rndString1,
+					Deleted: false,
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Postgres{
+				db:     db,
+				logger: l,
+			}
+			got, err := s.GetUserURLs(tt.args.ctx, tt.args.userID)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			if tt.want != nil {
+				assert.NotEmpty(t, got)
+			} else {
+				assert.Empty(t, got)
+			}
+		})
+	}
+}
+
+func TestPostgres_DeleteBatch(t *testing.T) {
+	l, _ := logger.NewLogger()
+	db, _ := sqlx.Open("postgres", getDataBaseDSN())
+	type args struct {
+		ctx    _context.Context
+		userID string
+		pack   []string
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "It just works, dont ask...",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Postgres{
+				db:     db,
+				logger: l,
+			}
+			s.DeleteBatch(tt.args.ctx, tt.args.userID, tt.args.pack)
+		})
+	}
+}

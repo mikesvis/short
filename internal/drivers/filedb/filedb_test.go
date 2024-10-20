@@ -96,19 +96,6 @@ func TestStore(t *testing.T) {
 			want:    ``,
 			wantErr: true,
 		},
-		{
-			name: "No file exists",
-			args: args{
-				item: domain.URL{
-					UserID: "Heretic",
-					Full:   "http://www.yandex.ru/verylongpath",
-					Short:  "short",
-				},
-				mustFail: true,
-			},
-			want:    ``,
-			wantErr: true,
-		},
 	}
 	uuid.SetRand(rand.New(rand.NewSource(1)))
 	// Creating temp file
@@ -264,9 +251,10 @@ func TestGetByShort(t *testing.T) {
 	ctx := _context.Background()
 
 	tests := []struct {
-		name string
-		args string
-		want domain.URL
+		name    string
+		args    string
+		want    domain.URL
+		wantErr bool
 	}{
 		{
 			name: "Is found by short",
@@ -275,19 +263,36 @@ func TestGetByShort(t *testing.T) {
 				Full:  "http://www.yandex.ru/verylongpath",
 				Short: "short",
 			},
-		}, {
-			name: "Is not found by short",
-			args: "dummyShort",
-			want: domain.URL{},
+			wantErr: false,
+		},
+		{
+			name:    "Is not found by short",
+			args:    "dummyShort",
+			want:    domain.URL{},
+			wantErr: false,
+		},
+		{
+			name:    "Is error",
+			args:    "http://localhost/",
+			want:    domain.URL{},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpFile := createAndSeedTestStorage(t)
+			if tt.wantErr {
+				tmpFile = ""
+			}
 			s := &FileDB{
 				fileName: tmpFile,
 			}
-			item, _ := s.GetByShort(ctx, tt.args)
+			item, err := s.GetByShort(ctx, tt.args)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
 			assert.IsType(t, tt.want, item)
 			assert.EqualValues(t, tt.want, item)
 			os.Remove(tmpFile)
@@ -322,9 +327,10 @@ func TestStoreBatch(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
-		args map[string]domain.URL
-		want want
+		name    string
+		args    map[string]domain.URL
+		want    want
+		wantErr bool
 	}{
 		{
 			name: "Batch store items",
@@ -351,6 +357,22 @@ func TestStoreBatch(t *testing.T) {
 					"is_deleted":false
 				}`,
 			},
+			wantErr: false,
+		},
+		{
+			name: "Is error",
+			args: map[string]domain.URL{
+				"1": {
+					UserID: "DoomGuy",
+					Full:   "http://www.yandex.ru/verylongpath1",
+					Short:  "short1",
+				},
+			},
+			want: want{
+				stored:        map[string]domain.URL{},
+				storageString: ``,
+			},
+			wantErr: true,
 		},
 	}
 	uuid.SetRand(rand.New(rand.NewSource(1)))
@@ -361,13 +383,23 @@ func TestStoreBatch(t *testing.T) {
 			require.Nil(t, err)
 			tmpFile.Close()
 
+			fileName := tmpFile.Name()
+
+			if tt.wantErr {
+				fileName = ""
+			}
+
 			// Using temp file in storage
 			s := &FileDB{
-				fileName: tmpFile.Name(),
+				fileName: fileName,
 			}
 
 			// Storing
 			stored, err := s.StoreBatch(ctx, tt.args)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
 			require.NoError(t, err)
 
 			// Reading temp file

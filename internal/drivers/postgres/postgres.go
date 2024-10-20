@@ -192,6 +192,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	}
 
 	// какое-то неведомое колдунство? Иначе where in не сделать
+	// как протестить err?
 	query, args, err := sqlx.In("SELECT id, user_id, full_url, short_key, is_deleted FROM shorts WHERE full_url IN (?)", fullUrls)
 	if err != nil {
 		s.logger.Errorw(`Error occured while composing query`, err)
@@ -200,6 +201,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	query = s.db.Rebind(query)
 
 	// ищем существующие
+	// как протестить err?
 	existingItems := []postgresDBItem{}
 	err = s.db.SelectContext(ctx, &existingItems, query, args...)
 	if err != nil {
@@ -239,6 +241,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	// сделаем добавление через транзакцию
 	tx := s.db.MustBeginTx(ctx, nil)
 	defer tx.Rollback()
+	// как протестить err?
 	_, err = tx.NamedExecContext(ctx, `INSERT INTO shorts (id, user_id, full_url, short_key) VALUES (:id, :user_id, :full_url, :short_key)`, newItems)
 	if err != nil {
 		s.logger.Errorw(`Error occured while batch insert`, err)
@@ -246,6 +249,7 @@ func (s *Postgres) StoreBatch(ctx context.Context, us map[string]domain.URL) (ma
 	}
 
 	err = tx.Commit()
+	// как протестить err?
 	if err != nil {
 		s.logger.Errorw(`Error occured while commiting transaction`, err)
 		return nil, err
