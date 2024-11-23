@@ -54,17 +54,25 @@ func BenchmarkNewStorageURL(b *testing.B) {
 func TestStore(t *testing.T) {
 	ctx := _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy")
 
+	type args struct {
+		item     domain.URL
+		mustFail bool
+	}
 	tests := []struct {
-		name string
-		args domain.URL
-		want string
+		name    string
+		args    args
+		want    string
+		wantErr bool
 	}{
 		{
 			name: "Store item",
-			args: domain.URL{
-				UserID: "DoomGuy",
-				Full:   "http://www.yandex.ru/verylongpath",
-				Short:  "short",
+			args: args{
+				item: domain.URL{
+					UserID: "DoomGuy",
+					Full:   "http://www.yandex.ru/verylongpath",
+					Short:  "short",
+				},
+				mustFail: false,
 			},
 			want: `{
 				"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72",
@@ -73,25 +81,51 @@ func TestStore(t *testing.T) {
 				"original_url":"http://www.yandex.ru/verylongpath",
 				"is_deleted":false
 			}`,
+			wantErr: false,
+		},
+		{
+			name: "Has conflict on store",
+			args: args{
+				item: domain.URL{
+					UserID: "Heretic",
+					Full:   "http://www.yandex.ru/verylongpath",
+					Short:  "short",
+				},
+				mustFail: false,
+			},
+			want:    ``,
+			wantErr: true,
 		},
 	}
 	uuid.SetRand(rand.New(rand.NewSource(1)))
+	// Creating temp file
+	tmpFile, err := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	require.Nil(t, err)
+	tmpFile.Close()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Creating temp file
-			tmpFile, err := os.CreateTemp(os.TempDir(), "dbtest*.json")
-			require.Nil(t, err)
-			tmpFile.Close()
 
 			// Using temp file in storage
+			fileName := tmpFile.Name()
+
+			// Faking not existing file
+			if tt.args.mustFail {
+				fileName = os.TempDir() + "/!"
+			}
 			s := &FileDB{
-				fileName: tmpFile.Name(),
+				fileName: fileName,
 			}
 
 			// Storing
-			result, err := s.Store(ctx, tt.args)
+			result, err := s.Store(ctx, tt.args.item)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
 			require.NoError(t, err)
-			assert.Equal(t, tt.args, result)
+			assert.Equal(t, tt.args.item, result)
 
 			// Reading temp file
 			file, err := os.OpenFile(s.fileName, os.O_RDONLY, 0666)
@@ -103,10 +137,11 @@ func TestStore(t *testing.T) {
 
 			assert.JSONEq(t, tt.want, fileString)
 
-			// Removing temp file
-			os.Remove(tmpFile.Name())
 		})
 	}
+
+	// Removing temp file
+	os.Remove(tmpFile.Name())
 }
 
 func BenchmarkStore(b *testing.B) {
@@ -145,9 +180,10 @@ func TestGetByFull(t *testing.T) {
 	ctx := _context.Background()
 
 	tests := []struct {
-		name string
-		args string
-		want domain.URL
+		name    string
+		args    string
+		want    domain.URL
+		wantErr bool
 	}{
 		{
 			name: "Is found by full",
@@ -156,19 +192,36 @@ func TestGetByFull(t *testing.T) {
 				Full:  "http://www.yandex.ru/verylongpath",
 				Short: "short",
 			},
-		}, {
-			name: "Is not found by full",
-			args: "http://localhost/",
-			want: domain.URL{},
+			wantErr: false,
+		},
+		{
+			name:    "Is not found by full",
+			args:    "http://localhost/",
+			want:    domain.URL{},
+			wantErr: false,
+		},
+		{
+			name:    "Is error",
+			args:    "http://localhost/",
+			want:    domain.URL{},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpFile := createAndSeedTestStorage(t)
+			if tt.wantErr {
+				tmpFile = ""
+			}
 			s := &FileDB{
 				fileName: tmpFile,
 			}
-			item, _ := s.GetByFull(ctx, tt.args)
+			item, err := s.GetByFull(ctx, tt.args)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
 			assert.IsType(t, tt.want, item)
 			assert.EqualValues(t, tt.want, item)
 			os.Remove(tmpFile)
@@ -198,9 +251,10 @@ func TestGetByShort(t *testing.T) {
 	ctx := _context.Background()
 
 	tests := []struct {
-		name string
-		args string
-		want domain.URL
+		name    string
+		args    string
+		want    domain.URL
+		wantErr bool
 	}{
 		{
 			name: "Is found by short",
@@ -209,19 +263,36 @@ func TestGetByShort(t *testing.T) {
 				Full:  "http://www.yandex.ru/verylongpath",
 				Short: "short",
 			},
-		}, {
-			name: "Is not found by short",
-			args: "dummyShort",
-			want: domain.URL{},
+			wantErr: false,
+		},
+		{
+			name:    "Is not found by short",
+			args:    "dummyShort",
+			want:    domain.URL{},
+			wantErr: false,
+		},
+		{
+			name:    "Is error",
+			args:    "http://localhost/",
+			want:    domain.URL{},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpFile := createAndSeedTestStorage(t)
+			if tt.wantErr {
+				tmpFile = ""
+			}
 			s := &FileDB{
 				fileName: tmpFile,
 			}
-			item, _ := s.GetByShort(ctx, tt.args)
+			item, err := s.GetByShort(ctx, tt.args)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
 			assert.IsType(t, tt.want, item)
 			assert.EqualValues(t, tt.want, item)
 			os.Remove(tmpFile)
@@ -256,9 +327,10 @@ func TestStoreBatch(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
-		args map[string]domain.URL
-		want want
+		name    string
+		args    map[string]domain.URL
+		want    want
+		wantErr bool
 	}{
 		{
 			name: "Batch store items",
@@ -285,6 +357,22 @@ func TestStoreBatch(t *testing.T) {
 					"is_deleted":false
 				}`,
 			},
+			wantErr: false,
+		},
+		{
+			name: "Is error",
+			args: map[string]domain.URL{
+				"1": {
+					UserID: "DoomGuy",
+					Full:   "http://www.yandex.ru/verylongpath1",
+					Short:  "short1",
+				},
+			},
+			want: want{
+				stored:        map[string]domain.URL{},
+				storageString: ``,
+			},
+			wantErr: true,
 		},
 	}
 	uuid.SetRand(rand.New(rand.NewSource(1)))
@@ -295,13 +383,23 @@ func TestStoreBatch(t *testing.T) {
 			require.Nil(t, err)
 			tmpFile.Close()
 
+			fileName := tmpFile.Name()
+
+			if tt.wantErr {
+				fileName = ""
+			}
+
 			// Using temp file in storage
 			s := &FileDB{
-				fileName: tmpFile.Name(),
+				fileName: fileName,
 			}
 
 			// Storing
 			stored, err := s.StoreBatch(ctx, tt.args)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
 			require.NoError(t, err)
 
 			// Reading temp file
@@ -445,4 +543,53 @@ func TestFileDB_Ping(t *testing.T) {
 	}
 
 	os.Remove(tmpFile.Name())
+}
+
+func TestFileDB_GetRandkey(t *testing.T) {
+	l, _ := logger.NewLogger()
+	type want struct {
+		typeOf  string
+		len     int
+		isEmpty bool
+	}
+	tests := []struct {
+		name string
+		arg  uint
+		want want
+	}{
+		{
+			name: "Rand key is string of length",
+			arg:  5,
+			want: want{
+				typeOf:  "",
+				len:     5,
+				isEmpty: false,
+			},
+		}, {
+			name: "Rand key is empty sting of zero length",
+			arg:  0,
+			want: want{
+				typeOf:  "",
+				len:     0,
+				isEmpty: true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &FileDB{
+				fileName: "/tmp/dummyFile.db",
+				logger:   l,
+			}
+			randKey := s.GetRandkey(tt.arg)
+			assert.IsType(t, "", randKey)
+			assert.Len(t, randKey, tt.want.len)
+			if !tt.want.isEmpty {
+				assert.NotEmpty(t, s.GetRandkey(tt.arg))
+				return
+			}
+
+			assert.Empty(t, s.GetRandkey(tt.arg))
+		})
+	}
 }

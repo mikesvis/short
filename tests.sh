@@ -2,6 +2,7 @@
 
 # go build -o ./cmd/staticlint/staticlint ./cmd/staticlint/*.go
 # go build -o ./cmd/shortener/shortener ./cmd/shortener/*.go
+# go test ./... -coverprofile cover.out && go tool cover -func cover.out
 
 ~/bin/shortenertestbeta  -test.v -test.run=^TestIteration1$ -binary-path=cmd/shortener/shortener;
 ~/bin/shortenertestbeta  -test.v -test.run=^TestIteration2$ -binary-path=cmd/shortener/shortener -source-path=./;
