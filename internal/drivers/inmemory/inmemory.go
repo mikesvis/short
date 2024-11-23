@@ -122,3 +122,21 @@ func (s *InMemory) GetUserURLs(ctx context.Context, userID string) ([]domain.URL
 func (s *InMemory) GetRandkey(n uint) string {
 	return keygen.GetRandkey(n)
 }
+
+// Получение статистики по URL и пользователям
+func (s *InMemory) GetStats(ctx context.Context) (domain.Stats, error) {
+	usersCounter := (make(map[string]int, len(s.items)))
+	for _, v := range s.items {
+		_, exists := usersCounter[v.UserID]
+		if !exists {
+			usersCounter[v.UserID] = 0
+		}
+
+		usersCounter[v.UserID]++
+	}
+
+	return domain.Stats{
+		URLs:  len(s.items),
+		Users: len(usersCounter),
+	}, nil
+}

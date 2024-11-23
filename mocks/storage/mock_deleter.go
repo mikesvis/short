@@ -91,6 +91,21 @@ func (mr *MockStorageDeleterMockRecorder) GetRandkey(arg0 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRandkey", reflect.TypeOf((*MockStorageDeleter)(nil).GetRandkey), arg0)
 }
 
+// GetStats mocks base method.
+func (m *MockStorageDeleter) GetStats(arg0 context.Context) (domain.Stats, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStats", arg0)
+	ret0, _ := ret[0].(domain.Stats)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetStats indicates an expected call of GetStats.
+func (mr *MockStorageDeleterMockRecorder) GetStats(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStats", reflect.TypeOf((*MockStorageDeleter)(nil).GetStats), arg0)
+}
+
 // GetUserURLs mocks base method.
 func (m *MockStorageDeleter) GetUserURLs(arg0 context.Context, arg1 string) ([]domain.URL, error) {
 	m.ctrl.T.Helper()

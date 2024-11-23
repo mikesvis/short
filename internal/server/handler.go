@@ -307,3 +307,31 @@ func (h *Handler) DeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusAccepted)
 }
+
+// Обработка GET /api/internal/stats
+// Статистика сокращенных URL и пользователей
+func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := _context.WithCancel(r.Context())
+	defer cancel()
+
+	result, err := h.storage.GetStats(ctx)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	response := struct {
+		URLs  int `json:"urls"`
+		Users int `json:"users"`
+	}{
+		URLs:  result.URLs,
+		Users: result.Users,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	jsonEncoder := json.NewEncoder(w)
+	jsonEncoder.Encode(response)
+}

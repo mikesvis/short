@@ -18,6 +18,7 @@ Usage of cmd/shortener/shortener/main:
   -f, --file_storage_path string   path to file storage of URLs
   -e, --server_cert_path string    path to server certificate file
   -k, --server_key_path string     path to server key file
+  -t, --trusted_subnet             CIDR of trusted subnet
 ```
 
 ### Переменные окружения (повторяют ф-нал флагов)
@@ -31,11 +32,12 @@ ENABLE_HTTPS        // use HTTPS connection
 FILE_STORAGE_PATH   // default "/tmp/short-url-db.json"
 SERVER_CERT_PATH    // path to server certificate file
 SERVER_KEY_PATH     // path to server key file
+TRUSTED_SUBNET      // CIDR of trusted subnet
 ```
 
 ### Конфиг из файла
 
-Пример файла кофигурации в файле `config.sample.json`
+Пример файла кофигурации в файле `config.sample.json`. Для включения конфига из файла необходимо скориповать его содержимое в файл `config.json`
 
 ```
 {
@@ -45,7 +47,8 @@ SERVER_KEY_PATH     // path to server key file
     "database_dsn": "host=0.0.0.0 port=5433 user=postgres password=postgres dbname=short sslmode=disable",
     "enable_https": false,
     "server_key_path": "",
-    "server_cert_path": ""
+    "server_cert_path": "",
+    "trusted_subnet": "127.0.0.1/24"
 }
 ```
 

@@ -35,6 +35,9 @@ type Config struct {
 
 	// ConfigFilePath - путь к файлу конфига в формате json
 	ConfigFilePath string `env:"CONFIG"`
+
+	// TrustedSubnet - строковое представление бесклассовой адресации (CIDR) для доверенной подсети
+	TrustedSubnet string `env:"TRUSTED_SUBNET"`
 }
 
 // Конструктор конфигурации приложения.
@@ -87,6 +90,10 @@ func NewConfig() *Config {
 		config.ServerCertPath = configFile.ServerCertPath
 	}
 
+	if config.TrustedSubnet == "" && len(configFile.TrustedSubnet) > 0 {
+		config.TrustedSubnet = configFile.TrustedSubnet
+	}
+
 	if !config.EnableHTTPS {
 		return &config
 	}
@@ -106,6 +113,7 @@ func parseFlags(c *Config) {
 	flag.BoolVarP(&c.EnableHTTPS, "enable_https", "s", false, "use HTTPS connection")
 	flag.StringVarP(&c.ServerKeyPath, "server_key_path", "k", "", "path to server key file")
 	flag.StringVarP(&c.ServerCertPath, "server_cert_path", "e", "", "path to server certificate file")
+	flag.StringVarP(&c.TrustedSubnet, "trusted_subnet", "t", "", "CIDR of trusted subnet")
 	flag.StringVarP(&c.ConfigFilePath, "config", "c", "", "path to config file in json format")
 	flag.Parse()
 }

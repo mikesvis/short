@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# mockgen -destination mocks/storage/mock_deleter.go github.com/mikesvis/short/internal/storage StorageDeleter
 # go build -o ./cmd/staticlint/staticlint ./cmd/staticlint/*.go
 # go build -o ./cmd/shortener/shortener ./cmd/shortener/*.go
 # go test ./... -coverprofile cover.out && go tool cover -func cover.out
