@@ -21,6 +21,7 @@ import (
 	"github.com/mikesvis/short/internal/storage"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	_ "google.golang.org/grpc/encoding/gzip"
 )
 
@@ -67,16 +68,26 @@ func New(config *config.Config) *App {
 	}
 
 	// инфраструктура для GRPC
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(
-			grpc_middleware.ChainUnaryServer(
-				interceptors.RequestResponseLoggerInterceptor(logger),
-				interceptors.SignInInterceptor,
-				interceptors.AuthInterceptor,
-				interceptors.TrustedSubnetInterceptor(config.TrustedSubnet),
-			),
+	interceptors := grpc.UnaryInterceptor(
+		grpc_middleware.ChainUnaryServer(
+			interceptors.RequestResponseLoggerInterceptor(logger),
+			interceptors.SignInInterceptor,
+			interceptors.AuthInterceptor,
+			interceptors.TrustedSubnetInterceptor(config.TrustedSubnet),
 		),
 	)
+
+	var grpcServer *grpc.Server
+	if config.EnableHTTPS {
+		creds, err := credentials.NewServerTLSFromFile(config.ServerCertPath, config.ServerKeyPath)
+		if err != nil {
+			logger.Fatalf("Failed to init creds for gRPC: %v", err)
+		}
+		grpcServer = grpc.NewServer(grpc.Creds(creds), interceptors)
+	} else {
+		grpcServer = grpc.NewServer(interceptors)
+	}
+
 	shortGRPCServer := server.NewShortServer(storage, config)
 	pb.RegisterShortServiceServer(grpcServer, shortGRPCServer)
 
@@ -102,12 +113,11 @@ func (a *App) Run() error {
 
 	// Запускаем GRPC сервер
 	go func() {
-		lis, err := net.Listen("tcp", a.config.GRPCServerAddress)
+		listener, err := net.Listen("tcp", a.config.GRPCServerAddress)
 		if err != nil {
 			a.logger.Fatalf("Failed to listen for gRPC: %v", err)
 		}
-
-		if err := a.grpcServer.Serve(lis); err != nil {
+		if err := a.grpcServer.Serve(listener); err != nil {
 			log.Fatalf("Failed to serve gRPC: %v", err)
 		}
 	}()
