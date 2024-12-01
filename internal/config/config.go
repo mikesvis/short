@@ -15,6 +15,9 @@ type Config struct {
 	// ServerAddress - адрес сервера приложения. По-умолчанию localhost:8080.
 	ServerAddress string `env:"SERVER_ADDRESS" json:"server_address"`
 
+	// GRPCServerAddress - адрес сервера приложения. По-умолчанию localhost:8080.
+	GRPCServerAddress string `env:"GRPC_SERVER_ADDRESS" json:"grpc_server_address"`
+
 	// BaseURL - адрес сервера для коротких URL. По-умолчанию http://localhost:8080.
 	BaseURL string `env:"BASE_URL" json:"base_url"`
 
@@ -35,6 +38,9 @@ type Config struct {
 
 	// ConfigFilePath - путь к файлу конфига в формате json
 	ConfigFilePath string `env:"CONFIG"`
+
+	// TrustedSubnet - строковое представление бесклассовой адресации (CIDR) для доверенной подсети
+	TrustedSubnet string `env:"TRUSTED_SUBNET"`
 }
 
 // Конструктор конфигурации приложения.
@@ -56,6 +62,15 @@ func NewConfig() *Config {
 	// setting default value if still empty
 	if config.ServerAddress == "" {
 		config.ServerAddress = "localhost:8080"
+	}
+
+	if config.GRPCServerAddress == "" && len(configFile.GRPCServerAddress) > 0 {
+		config.GRPCServerAddress = configFile.GRPCServerAddress
+	}
+
+	// setting default value if still empty
+	if config.GRPCServerAddress == "" {
+		config.GRPCServerAddress = "localhost:8082"
 	}
 
 	if config.BaseURL == "" && len(configFile.BaseURL) > 0 {
@@ -87,6 +102,10 @@ func NewConfig() *Config {
 		config.ServerCertPath = configFile.ServerCertPath
 	}
 
+	if config.TrustedSubnet == "" && len(configFile.TrustedSubnet) > 0 {
+		config.TrustedSubnet = configFile.TrustedSubnet
+	}
+
 	if !config.EnableHTTPS {
 		return &config
 	}
@@ -99,13 +118,15 @@ func NewConfig() *Config {
 }
 
 func parseFlags(c *Config) {
-	flag.StringVarP(&c.ServerAddress, "address", "a", "", "address of shortener service server (default: localhost:8080)")
+	flag.StringVarP(&c.ServerAddress, "address", "a", "", "address of shortener service http server (default: localhost:8080)")
+	flag.StringVarP(&c.GRPCServerAddress, "grpc_address", "g", "", "address of shortener service grpc server (default: localhost:8082)")
 	flag.StringVarP(&c.BaseURL, "basepath", "b", "", "address of short link basepath (default: http://localhost:8080)")
 	flag.StringVarP(&c.FileStoragePath, "file_storage_path", "f", "", "path to file storage of URLs")
 	flag.StringVarP(&c.DatabaseDSN, "database_dsn", "d", "", "db connection string")
 	flag.BoolVarP(&c.EnableHTTPS, "enable_https", "s", false, "use HTTPS connection")
 	flag.StringVarP(&c.ServerKeyPath, "server_key_path", "k", "", "path to server key file")
 	flag.StringVarP(&c.ServerCertPath, "server_cert_path", "e", "", "path to server certificate file")
+	flag.StringVarP(&c.TrustedSubnet, "trusted_subnet", "t", "", "CIDR of trusted subnet")
 	flag.StringVarP(&c.ConfigFilePath, "config", "c", "", "path to config file in json format")
 	flag.Parse()
 }

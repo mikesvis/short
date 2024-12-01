@@ -14,6 +14,9 @@ const SecretPass = "mySecretPass"
 // Имя куки авторизации.
 const AuthorizationCookieName = "Authorization-JWT"
 
+// Ключ авторизации в Metadata
+const AuthorizationMDKeyName = "authorization-jwt"
+
 // Время жизни куки авторизации.
 const TokenDuration = time.Hour * 24 * 30
 

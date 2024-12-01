@@ -34,6 +34,9 @@ type Storage interface {
 
 	// Генерация случайного ключа
 	GetRandkey(n uint) string
+
+	// Статистика сокращенных URL и пользователей
+	GetStats(ctx context.Context) (domain.Stats, error)
 }
 
 // Интерфейс обеспечивающий метод для прозвона хранилки.

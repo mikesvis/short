@@ -257,3 +257,38 @@ func (s *FileDB) GetUserURLs(ctx context.Context, userID string) ([]domain.URL, 
 func (s *FileDB) GetRandkey(n uint) string {
 	return keygen.GetRandkey(n)
 }
+
+// Получение статистики по URL и пользователям
+func (s *FileDB) GetStats(ctx context.Context) (domain.Stats, error) {
+	file, err := os.OpenFile(s.fileName, os.O_RDONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return domain.Stats{}, err
+	}
+	defer file.Close()
+
+	usersCounter := (make(map[string]uint64, 100))
+	var linksCounter int
+
+	decoder := json.NewDecoder(file)
+	for {
+		var i fileDBItem
+		if err := decoder.Decode(&i); err == io.EOF {
+			break
+		} else if err != nil {
+			return domain.Stats{}, err
+		}
+
+		_, exists := usersCounter[i.UserID]
+		if !exists {
+			usersCounter[i.UserID] = 0
+		}
+
+		usersCounter[i.UserID]++
+		linksCounter++
+	}
+
+	return domain.Stats{
+		URLs:  linksCounter,
+		Users: len(usersCounter),
+	}, nil
+}

@@ -19,6 +19,7 @@ func NewRouter(h *Handler, middlewares ...func(http.Handler) http.Handler) *chi.
 		r.With(middleware.SignIn).Post("/shorten", h.CreateShortURLJSON)
 		r.With(middleware.Auth).Get("/user/urls", h.GetUserURLs)
 		r.With(middleware.Auth).Delete("/user/urls", h.DeleteUserURLs)
+		r.With(middleware.TrustedSubnet(h.config.TrustedSubnet)).Get("/internal/stats", h.GetStats)
 	})
 
 	r.Route("/", func(r chi.Router) {

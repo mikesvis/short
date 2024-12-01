@@ -443,3 +443,16 @@ func (s *Postgres) deleteBatchByIds(ctx context.Context, inputCh chan string) {
 func (s *Postgres) GetRandkey(n uint) string {
 	return keygen.GetRandkey(n)
 }
+
+// Получение статистики по URL и пользователям
+func (s *Postgres) GetStats(ctx context.Context) (domain.Stats, error) {
+	var stats domain.Stats
+	row := s.db.QueryRowxContext(ctx, "SELECT COUNT(DISTINCT full_url) as urls, COUNT(DISTINCT user_id) as users FROM shorts")
+	err := row.StructScan(&stats)
+	if err != nil {
+		s.logger.Errorw(`Error occured while getting stats`, err)
+		return domain.Stats{}, err
+	}
+
+	return stats, nil
+}

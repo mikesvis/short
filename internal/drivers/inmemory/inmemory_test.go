@@ -505,3 +505,62 @@ func TestInMemory_GetRandkey(t *testing.T) {
 		})
 	}
 }
+
+func TestGetStats(t *testing.T) {
+	ctx := _context.Background()
+	type fields struct {
+		items map[domain.ID]domain.URL
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   string
+		want   domain.Stats
+	}{
+		{
+			name: "Get zeros",
+			fields: fields{
+				items: map[domain.ID]domain.URL{},
+			},
+			want: domain.Stats{
+				URLs:  0,
+				Users: 0,
+			},
+		},
+		{
+			name: "Get non zero stats",
+			fields: fields{
+				items: map[domain.ID]domain.URL{
+					"1": {
+						UserID:  "DoomGuy1",
+						Full:    "http://iddqd1.com",
+						Short:   "idkfa1",
+						Deleted: false,
+					},
+					"2": {
+						UserID:  "DoomGuy2",
+						Full:    "http://iddqd2.com",
+						Short:   "idkfa2",
+						Deleted: false,
+					},
+				},
+			},
+			want: domain.Stats{
+				URLs:  2,
+				Users: 2,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &InMemory{
+				items: tt.fields.items,
+			}
+			got, err := s.GetStats(ctx)
+			require.NoError(t, err)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("InMemory.GetStats() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

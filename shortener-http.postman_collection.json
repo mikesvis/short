@@ -1,0 +1,274 @@
+{
+	"info": {
+		"_postman_id": "9b637573-06f4-4b44-8732-1ff47176c09c",
+		"name": "shortener",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "11316747"
+	},
+	"item": [
+		{
+			"name": "/:short",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host}}/FyReE",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"FyReE"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/ping",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host}}/ping",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"ping"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/api/internal/stats",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Cookie",
+						"value": "Authorization-JWT=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJhODYyZDcyMi04N2YzLTRjNGUtYmUxYS1lYzZlMDBmNjgyYjgiLCJleHAiOjE3MzQ5NTE3NTF9.sPtj0tkRRzzItP3d_X-V7Rl0aUG8iEe25HcothMjFnM",
+						"name": "cookie",
+						"type": "text"
+					},
+					{
+						"key": "Cache-Control",
+						"value": "no-cache",
+						"name": "cache-control",
+						"type": "text"
+					},
+					{
+						"key": "Postman-Token",
+						"value": "<calculated when request is sent>",
+						"name": "postman-token",
+						"type": "text"
+					},
+					{
+						"key": "Host",
+						"value": "<calculated when request is sent>",
+						"name": "host",
+						"type": "text"
+					},
+					{
+						"key": "User-Agent",
+						"value": "PostmanRuntime/7.39.1",
+						"name": "user-agent",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "*/*",
+						"name": "accept",
+						"type": "text"
+					},
+					{
+						"key": "Accept-Encoding",
+						"value": "gzip, deflate, br",
+						"name": "accept-encoding",
+						"type": "text"
+					},
+					{
+						"key": "Connection",
+						"value": "keep-alive",
+						"name": "connection",
+						"type": "text"
+					},
+					{
+						"key": "X-Real-IP",
+						"value": "193.144.0.1",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{host}}/api/internal/stats",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"api",
+						"internal",
+						"stats"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/api/user/urls",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host}}/api/user/urls",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"api",
+						"user",
+						"urls"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/api/user/urls",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "[\n    \"Xmphy\",\n    \"EtMmg\",\n    \"AHpxL\",\n    \"cJNXQ\"//,\n    // \"TPCwg\",\n    // \"eafyO\",\n    // \"pXhsr\"\n]",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{host}}/api/user/urls",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"api",
+						"user",
+						"urls"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "http://yandex11.ru",
+					"options": {
+						"raw": {
+							"language": "text"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{host}}/",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/api/shorten",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"url\": \"https://yande3x.ru\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{host}}/api/shorten",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"api",
+						"shorten"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/api/shorten/batch",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "[\n    {\n        \"correlation_id\": \"1\",\n        \"original_url\": \"http://yahoo1.ru\"\n    },\n    {\n        \"correlation_id\": \"2\",\n        \"original_url\": \"http://yahoo2.ru\"\n    },\n    {\n        \"correlation_id\": \"3\",\n        \"original_url\": \"http://yahoo3.ru\"\n    },\n    {\n        \"correlation_id\": \"4\",\n        \"original_url\": \"http://yahoo4.ru\"\n    },\n    {\n        \"correlation_id\": \"5\",\n        \"original_url\": \"http://yahoo5.ru\"\n    },\n    {\n        \"correlation_id\": \"6\",\n        \"original_url\": \"http://yahoo6.ru\"\n    },\n    {\n        \"correlation_id\": \"7\",\n        \"original_url\": \"http://yahoo7.ru\"\n    },\n    {\n        \"correlation_id\": \"8\",\n        \"original_url\": \"http://yahoo8.ru\"\n    }\n]",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{host}}/api/shorten/batch",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"api",
+						"shorten",
+						"batch"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "host",
+			"value": "http://localhost:8080",
+			"type": "string"
+		}
+	]
+}

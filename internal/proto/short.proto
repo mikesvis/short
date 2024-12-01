@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package short;
+option go_package = "./protobuf";
+
+import "google/protobuf/empty.proto";
+
+// Сервис сокращателя ссылок
+service ShortService {
+  // SaveURL создает короткую ссылку для URL
+  rpc SaveURL(SaveURLRequest) returns (SaveURLResponse);
+
+  // ShortenBatchURL создает короткие ссылки пакетно
+  rpc ShortenBatchURL(ShortenBatchURLRequest) returns (ShortenBatchURLResponse);
+
+  // GetURLByID получение полной ссылки по сокращенной
+  rpc GetURLByID(GetURLByIDRequest) returns (GetURLByIDResponse);
+
+  // GetURLByUser получение сокращенных ссылок пользователя
+  rpc GetURLByUser(google.protobuf.Empty) returns (GetURLByUserResponse);
+
+  // DeleteBatchURL пакетно удаляет сокращенные ссылки
+  rpc DeleteBatchURL(DeleteBatchURLRequest) returns (google.protobuf.Empty);
+
+  // GetStats стастистика сокращенных URL и пользователей
+  rpc GetStats(google.protobuf.Empty) returns (GetStatsResponse);
+}
+
+// Request and response messages
+message SaveURLRequest {
+  string url = 1;
+}
+
+message SaveURLResponse {
+  string shortURL = 1;
+}
+
+message DeleteBatchURLRequest {
+  repeated string urls = 1;
+}
+
+message GetURLByIDRequest {
+  string shortURL = 1;
+}
+
+message GetURLByIDResponse {
+  string originalURL = 1;
+}
+
+message GetURLByUserResponse {
+  repeated URLByUserResponseElement urls = 1;
+}
+
+message ShortenBatchURLRequest {
+  repeated ShortenBatchURLRequestElement urls = 1;
+}
+
+message ShortenBatchURLResponse {
+  repeated ShortenBatchURLResponseElement urls = 1;
+}
+
+message GetStatsResponse {
+  int32 urls = 1;
+  int32 users = 2;
+}
+
+// Data structure messages
+message ShortenBatchURLRequestElement {
+  string correlationId = 1;
+  string originalURL = 2;
+}
+
+message ShortenBatchURLResponseElement {
+  string correlationId = 1;
+  string shortURL = 2;
+}
+
+message URLByUserResponseElement {
+  string shortURL = 1;
+  string originalURL = 2;
+}
