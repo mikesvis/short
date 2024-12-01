@@ -18,20 +18,20 @@ import (
 )
 
 // Сервер grpc для сервиса
-type ShortGRPCServer struct {
+type ShortGRPCService struct {
 	pb.UnimplementedShortServiceServer
 	storage storage.Storage
 	config  *config.Config
 }
 
 // Инициализация сервера grpc для сервиса
-func NewShortServer(storage storage.Storage, config *config.Config) *ShortGRPCServer {
-	return &ShortGRPCServer{storage: storage, config: config}
+func NewShortService(storage storage.Storage, config *config.Config) *ShortGRPCService {
+	return &ShortGRPCService{storage: storage, config: config}
 }
 
 // Обработка /short.ShortService/SaveURL
 // Запись сокращенного URL в условную "базу" если нет такого ключа
-func (s *ShortGRPCServer) SaveURL(ctx _context.Context, in *pb.SaveURLRequest) (*pb.SaveURLResponse, error) {
+func (s *ShortGRPCService) SaveURL(ctx _context.Context, in *pb.SaveURLRequest) (*pb.SaveURLResponse, error) {
 	var response pb.SaveURLResponse
 
 	URL := string(in.Url)
@@ -64,7 +64,7 @@ func (s *ShortGRPCServer) SaveURL(ctx _context.Context, in *pb.SaveURLRequest) (
 
 // Обработка /short.ShortService/ShortenBatchURL
 // Запись сокращенного URL в условную "базу" если нет такого ключа
-func (s *ShortGRPCServer) ShortenBatchURL(ctx _context.Context, in *pb.ShortenBatchURLRequest) (*pb.ShortenBatchURLResponse, error) {
+func (s *ShortGRPCService) ShortenBatchURL(ctx _context.Context, in *pb.ShortenBatchURLRequest) (*pb.ShortenBatchURLResponse, error) {
 	// генерим потенциальные domain.URL на сохранение с новым Short
 	pack := make(map[string]domain.URL)
 	for _, v := range in.Urls {
@@ -95,7 +95,7 @@ func (s *ShortGRPCServer) ShortenBatchURL(ctx _context.Context, in *pb.ShortenBa
 
 // Обработка /short.ShortService/GetURLByID
 // GetURLByID получение полной ссылки по сокращенной
-func (s *ShortGRPCServer) GetURLByID(ctx _context.Context, in *pb.GetURLByIDRequest) (*pb.GetURLByIDResponse, error) {
+func (s *ShortGRPCService) GetURLByID(ctx _context.Context, in *pb.GetURLByIDRequest) (*pb.GetURLByIDResponse, error) {
 	item, err := s.storage.GetByShort(ctx, in.ShortURL)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "Internal server error")
@@ -114,10 +114,11 @@ func (s *ShortGRPCServer) GetURLByID(ctx _context.Context, in *pb.GetURLByIDRequ
 
 // Обработка /short.ShortService/GetURLByUser
 // GetURLByUser получение сокращенных ссылок пользователя
-func (s *ShortGRPCServer) GetURLByUser(ctx _context.Context, in *emptypb.Empty) (*pb.GetURLByUserResponse, error) {
+func (s *ShortGRPCService) GetURLByUser(ctx _context.Context, in *emptypb.Empty) (*pb.GetURLByUserResponse, error) {
 	// тут умышленно ctx, ctx.Value
 	// 1ый аргумент - контекст, 2ой аргумент - само значение ID пользователя
-	items, err := s.storage.GetUserURLs(ctx, ctx.Value(context.UserIDContextKey).(string))
+	userID := ctx.Value(context.UserIDContextKey).(string)
+	items, err := s.storage.GetUserURLs(ctx, userID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "Internal server error")
 	}
@@ -140,7 +141,7 @@ func (s *ShortGRPCServer) GetURLByUser(ctx _context.Context, in *emptypb.Empty) 
 
 // Обработка /short.ShortService/DeleteBatchURL
 // DeleteBatchURL пакетно удаляет сокращенные ссылки
-func (s *ShortGRPCServer) DeleteBatchURL(ctx _context.Context, in *pb.DeleteBatchURLRequest) (*emptypb.Empty, error) {
+func (s *ShortGRPCService) DeleteBatchURL(ctx _context.Context, in *pb.DeleteBatchURLRequest) (*emptypb.Empty, error) {
 	if _, isDeleter := s.storage.(storage.StorageDeleter); !isDeleter {
 		return nil, status.Error(codes.Internal, "Batch delete is not supported for used storage type")
 	}
@@ -156,7 +157,7 @@ func (s *ShortGRPCServer) DeleteBatchURL(ctx _context.Context, in *pb.DeleteBatc
 
 // Обработка /short.ShortService/GetStats
 // GetStats стастистика сокращенных URL и пользователей
-func (s *ShortGRPCServer) GetStats(ctx _context.Context, in *emptypb.Empty) (*pb.GetStatsResponse, error) {
+func (s *ShortGRPCService) GetStats(ctx _context.Context, in *emptypb.Empty) (*pb.GetStatsResponse, error) {
 	result, err := s.storage.GetStats(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "Internal server error")

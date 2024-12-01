@@ -2,9 +2,9 @@ package interceptors
 
 import (
 	"context"
-	"net"
 	"slices"
 
+	"github.com/mikesvis/short/internal/subnet"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -37,23 +37,10 @@ func TrustedSubnetInterceptor(ts string) func(ctx context.Context, req interface
 		}
 
 		clientIP := xRealIPSlice[0]
-		// X-Real-IP пустой - нелья
-		if clientIP == "" {
+		if !subnet.ValidateSubnet(clientIP, ts) {
 			return nil, status.Error(codes.PermissionDenied, "x-real-ip is empty")
 		}
 
-		// Ошибка при парсинге - нельзя
-		_, cidr, err := net.ParseCIDR(ts)
-		if err != nil {
-			return nil, status.Error(codes.Internal, "Subnet mask parsing error")
-		}
-
-		// IP не входит в доверенную сеть - нельзя
-		if !cidr.Contains(net.ParseIP(clientIP)) {
-			return nil, status.Error(codes.PermissionDenied, "Forbidden area")
-		}
-
-		// МОЖНА!
 		return handler(ctx, req)
 	}
 }

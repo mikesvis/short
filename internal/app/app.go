@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/mikesvis/short/internal/config"
 	"github.com/mikesvis/short/internal/interceptors"
 	"github.com/mikesvis/short/internal/logger"
@@ -68,14 +67,7 @@ func New(config *config.Config) *App {
 	}
 
 	// инфраструктура для GRPC
-	interceptors := grpc.UnaryInterceptor(
-		grpc_middleware.ChainUnaryServer(
-			interceptors.RequestResponseLoggerInterceptor(logger),
-			interceptors.SignInInterceptor,
-			interceptors.AuthInterceptor,
-			interceptors.TrustedSubnetInterceptor(config.TrustedSubnet),
-		),
-	)
+	interceptors := interceptors.GetInterceptors(logger, config)
 
 	var grpcServer *grpc.Server
 	if config.EnableHTTPS {
@@ -88,8 +80,8 @@ func New(config *config.Config) *App {
 		grpcServer = grpc.NewServer(interceptors)
 	}
 
-	shortGRPCServer := server.NewShortServer(storage, config)
-	pb.RegisterShortServiceServer(grpcServer, shortGRPCServer)
+	shortGRPCService := server.NewShortService(storage, config)
+	pb.RegisterShortServiceServer(grpcServer, shortGRPCService)
 
 	return &App{
 		config,

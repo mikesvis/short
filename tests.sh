@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # mockgen -destination mocks/storage/mock_deleter.go github.com/mikesvis/short/internal/storage StorageDeleter
+# protoc --go_out=. --go_opt=paths=source_relative   --go-grpc_out=. --go-grpc_opt=paths=source_relative   internal/proto/short.proto
 # go build -o ./cmd/staticlint/staticlint ./cmd/staticlint/*.go
 # go build -o ./cmd/shortener/shortener ./cmd/shortener/*.go
 # go test ./... -coverprofile cover.out && go tool cover -func cover.out

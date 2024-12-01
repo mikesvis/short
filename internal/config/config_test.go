@@ -15,13 +15,14 @@ func TestNew(t *testing.T) {
 		{
 			name: "Default config with empty FILE_STORAGE_PATH env variable",
 			want: &Config{
-				ServerAddress:   "localhost:8080",
-				BaseURL:         "http://localhost:8080",
-				FileStoragePath: "",
-				DatabaseDSN:     "",
-				EnableHTTPS:     false,
-				ServerKeyPath:   "",
-				ServerCertPath:  "",
+				ServerAddress:     "localhost:8080",
+				BaseURL:           "http://localhost:8080",
+				FileStoragePath:   "",
+				DatabaseDSN:       "",
+				EnableHTTPS:       false,
+				ServerKeyPath:     "",
+				ServerCertPath:    "",
+				GRPCServerAddress: "localhost:8082",
 			},
 		},
 	}

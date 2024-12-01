@@ -28,6 +28,10 @@ func getDataBaseDSN() string {
 	return "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
 }
 
+func truncateTable(db *sqlx.DB) {
+	db.Exec(`TRUNCATE TABLE shorts`)
+}
+
 func TestNewPostgres(t *testing.T) {
 	l, _ := logger.NewLogger()
 	type args struct {
@@ -571,6 +575,68 @@ func TestPostgres_DeleteBatch(t *testing.T) {
 				logger: l,
 			}
 			s.DeleteBatch(tt.args.ctx, tt.args.userID, tt.args.pack)
+		})
+	}
+}
+
+func TestPostgres_GetStats(t *testing.T) {
+	ctx := _context.Background()
+	l, _ := logger.NewLogger()
+	db, _ := sqlx.Open("postgres", getDataBaseDSN())
+	truncateTable(db)
+	s := &Postgres{
+		db:     db,
+		logger: l,
+	}
+	tests := []struct {
+		name    string
+		args    func(s *Postgres)
+		want    domain.Stats
+		wantErr bool
+	}{
+		{
+			name: "Stats are zeros",
+			args: func(s *Postgres) {
+
+			},
+			want: domain.Stats{
+				URLs:  0,
+				Users: 0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Get non zero stats",
+			args: func(s *Postgres) {
+				s.Store(
+					ctx,
+					domain.URL{
+						UserID:  "DoomGuy",
+						Full:    `https://yandex.com`,
+						Short:   `short`,
+						Deleted: false,
+					},
+				)
+			},
+			want: domain.Stats{
+				URLs:  1,
+				Users: 1,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.args(s)
+			got, err := s.GetStats(ctx)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.EqualValues(t, tt.want, got)
 		})
 	}
 }

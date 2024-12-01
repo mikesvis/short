@@ -174,6 +174,8 @@ func TestCreateShortURLText(t *testing.T) {
 		Full:   "http://www.yandex.ru/verylongpath",
 		Short:  "jHQri",
 	}, nil).Times(1)
+	mockedStorage.EXPECT().GetRandkey(uint(5)).Return("bHgdb").Times(1)
+	mockedStorage.EXPECT().Store(ctxMock, gomock.Any()).Return(domain.URL{}, goerrors.New("Fail")).Times(1)
 
 	type want struct {
 		contentType string
@@ -207,6 +209,20 @@ func TestCreateShortURLText(t *testing.T) {
 			},
 		},
 		{
+			name: "Something is rotten (400)",
+			want: want{
+				contentType: "text/plain; charset=utf-8",
+				statusCode:  http.StatusBadRequest,
+				isNew:       false,
+				body:        "Fail",
+			},
+			request: request{
+				method: "POST",
+				target: "/",
+				body:   "http://www.yandex.ru/verylongpath2",
+			},
+		},
+		{
 			name: "Empty body (400)",
 			want: want{
 				contentType: "text/plain; charset=utf-8",
@@ -234,20 +250,6 @@ func TestCreateShortURLText(t *testing.T) {
 				body:   "!!!",
 			},
 		},
-		// { // Я так и не понял как сделать так что в методе рандомное поле передается в мокируемый метод и как это все сравнить?!!
-		// 	name: "Get old short url from full (409)",
-		// 	want: want{
-		// 		contentType: "text/plain",
-		// 		statusCode:  http.StatusConflict,
-		// 		isNew:       false,
-		// 		body:        string(c.BaseURL) + "/short",
-		// 	},
-		// 	request: request{
-		// 		method: "POST",
-		// 		target: "/",
-		// 		body:   "http://www.yandex.ru/verylongpath",
-		// 	},
-		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -867,6 +869,30 @@ func TestHander_DeleteUserURLs(t *testing.T) {
 				body:   ``,
 			},
 		},
+		{
+			name: "Delete user URLs Bad Request empty request",
+			arg:  mockedStorage,
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+			request: request{
+				method: "DELETE",
+				target: "/api/user/urls",
+				body:   `[]`,
+			},
+		},
+		{
+			name: "Storage doesnt support batch delete",
+			arg:  &inmemory.InMemory{},
+			want: want{
+				statusCode: http.StatusInternalServerError,
+			},
+			request: request{
+				method: "DELETE",
+				target: "/api/user/urls",
+				body:   `["short1","short2"]`,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -879,6 +905,104 @@ func TestHander_DeleteUserURLs(t *testing.T) {
 			defer result.Body.Close()
 
 			assert.Equal(t, tt.want.statusCode, result.StatusCode)
+		})
+	}
+}
+
+func TestGetStats(t *testing.T) {
+	c := &config.Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: "",
+		DatabaseDSN:     "",
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockedStorage := mock_storage.NewMockStorageDeleter(ctrl)
+
+	mockedStorage.EXPECT().GetStats(gomock.Any()).Return(domain.Stats{
+		URLs:  0,
+		Users: 0,
+	}, nil)
+
+	mockedStorage.EXPECT().GetStats(gomock.Any()).Return(domain.Stats{}, goerrors.New("Failed"))
+
+	type want struct {
+		contentType string
+		statusCode  int
+		wantError   bool
+		body        string
+	}
+	type request struct {
+		method string
+		target string
+		ctx    _context.Context
+		body   string
+	}
+	tests := []struct {
+		name    string
+		want    want
+		request request
+	}{
+		{
+			name: "Get zero stats",
+			want: want{
+				contentType: "application/json",
+				statusCode:  http.StatusOK,
+				wantError:   false,
+				body:        `{"urls":0,"users":0}`,
+			},
+			request: request{
+				method: "GET",
+				target: "/api/internal/urls",
+				ctx:    _context.WithValue(_context.Background(), context.UserIDContextKey, "DoomGuy"),
+				body:   ``,
+			},
+		},
+		{
+			name: "Get error",
+			want: want{
+				contentType: "",
+				statusCode:  http.StatusInternalServerError,
+				wantError:   true,
+				body:        ``,
+			},
+			request: request{
+				method: "POST",
+				target: "/api/user/urls",
+				ctx:    _context.WithValue(_context.Background(), context.UserIDContextKey, "Heretic"),
+				body:   ``,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(tt.request.method, tt.request.target, strings.NewReader(tt.request.body)).WithContext(tt.request.ctx)
+			w := httptest.NewRecorder()
+			handler := NewHandler(c, mockedStorage)
+			handle := http.HandlerFunc(handler.GetStats)
+			handle(w, request)
+			result := w.Result()
+
+			assert.Equal(t, tt.want.statusCode, result.StatusCode)
+
+			response, err := io.ReadAll(result.Body)
+			require.NoError(t, err)
+			err = result.Body.Close()
+			require.NoError(t, err)
+
+			if tt.want.wantError {
+				require.Contains(t, string(response), tt.want.body)
+				return
+			}
+
+			assert.Equal(t, tt.want.contentType, result.Header.Get("Content-Type"))
+
+			if len(tt.want.body) != 0 {
+				assert.JSONEq(t, string(response), tt.want.body)
+			}
 		})
 	}
 }

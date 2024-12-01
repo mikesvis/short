@@ -165,12 +165,11 @@ func BenchmarkStore(b *testing.B) {
 	os.Remove(tmpFile.Name())
 }
 
-func createAndSeedTestStorage(t *testing.T) string {
-	const JSONstring = `{"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72","short_url": "short","original_url":"http://www.yandex.ru/verylongpath"}`
+func createAndSeedTestStorage(t *testing.T, jsonString string) string {
 	tmpFile, err := os.CreateTemp(os.TempDir(), "dbtest*.json")
 	require.Nil(t, err)
 
-	tmpFile.Write([]byte(JSONstring))
+	tmpFile.Write([]byte(jsonString))
 
 	tmpFile.Close()
 	return tmpFile.Name()
@@ -179,15 +178,23 @@ func createAndSeedTestStorage(t *testing.T) string {
 func TestGetByFull(t *testing.T) {
 	ctx := _context.Background()
 
+	type args struct {
+		in           string
+		fileContents string
+	}
+
 	tests := []struct {
 		name    string
-		args    string
+		args    args
 		want    domain.URL
 		wantErr bool
 	}{
 		{
 			name: "Is found by full",
-			args: "http://www.yandex.ru/verylongpath",
+			args: args{
+				in:           "http://www.yandex.ru/verylongpath",
+				fileContents: `{"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72","short_url": "short","original_url":"http://www.yandex.ru/verylongpath"}`,
+			},
 			want: domain.URL{
 				Full:  "http://www.yandex.ru/verylongpath",
 				Short: "short",
@@ -195,28 +202,43 @@ func TestGetByFull(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "Is not found by full",
-			args:    "http://localhost/",
+			name: "Is not found by full",
+			args: args{
+				in:           "http://localhost/",
+				fileContents: `{"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72","short_url": "short","original_url":"http://www.yandex.ru/verylongpath"}`,
+			},
 			want:    domain.URL{},
 			wantErr: false,
 		},
 		{
-			name:    "Is error",
-			args:    "http://localhost/",
+			name: "Is error",
+			args: args{
+				in:           "http://localhost/",
+				fileContents: `{"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72","short_url": "short","original_url":"http://www.yandex.ru/verylongpath"}`,
+			},
+			want:    domain.URL{},
+			wantErr: true,
+		},
+		{
+			name: "Is decode error",
+			args: args{
+				in:           "http://localhost/",
+				fileContents: `-5f0f9a621d72","short_url": "short","original_url":"http://www.yandex.ru/verylongpath"}`,
+			},
 			want:    domain.URL{},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpFile := createAndSeedTestStorage(t)
+			tmpFile := createAndSeedTestStorage(t, tt.args.fileContents)
 			if tt.wantErr {
 				tmpFile = ""
 			}
 			s := &FileDB{
 				fileName: tmpFile,
 			}
-			item, err := s.GetByFull(ctx, tt.args)
+			item, err := s.GetByFull(ctx, tt.args.in)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -250,15 +272,23 @@ func BenchmarkGetByFull(b *testing.B) {
 func TestGetByShort(t *testing.T) {
 	ctx := _context.Background()
 
+	type args struct {
+		in           string
+		fileContents string
+	}
+
 	tests := []struct {
 		name    string
-		args    string
+		args    args
 		want    domain.URL
 		wantErr bool
 	}{
 		{
 			name: "Is found by short",
-			args: "short",
+			args: args{
+				in:           "short",
+				fileContents: `{"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72","short_url": "short","original_url":"http://www.yandex.ru/verylongpath"}`,
+			},
 			want: domain.URL{
 				Full:  "http://www.yandex.ru/verylongpath",
 				Short: "short",
@@ -266,28 +296,43 @@ func TestGetByShort(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "Is not found by short",
-			args:    "dummyShort",
+			name: "Is not found by short",
+			args: args{
+				in:           "dummyShort",
+				fileContents: `{"uuid":"52fdfc07-2182-454f-963f-5f0f9a621d72","short_url": "short","original_url":"http://www.yandex.ru/verylongpath"}`,
+			},
 			want:    domain.URL{},
 			wantErr: false,
 		},
 		{
-			name:    "Is error",
-			args:    "http://localhost/",
+			name: "Is error",
+			args: args{
+				in:           "http://localhost/",
+				fileContents: ``,
+			},
+			want:    domain.URL{},
+			wantErr: true,
+		},
+		{
+			name: "Is decode error",
+			args: args{
+				in:           "short",
+				fileContents: `c07-2182-454f-963f-5f0f9a621d72","short_url": "short","original_url":"http://w`,
+			},
 			want:    domain.URL{},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpFile := createAndSeedTestStorage(t)
-			if tt.wantErr {
+			tmpFile := createAndSeedTestStorage(t, tt.args.fileContents)
+			if tt.args.fileContents == "" {
 				tmpFile = ""
 			}
 			s := &FileDB{
 				fileName: tmpFile,
 			}
-			item, err := s.GetByShort(ctx, tt.args)
+			item, err := s.GetByShort(ctx, tt.args.in)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -592,4 +637,84 @@ func TestFileDB_GetRandkey(t *testing.T) {
 			assert.Empty(t, s.GetRandkey(tt.arg))
 		})
 	}
+}
+
+func TestGetStats(t *testing.T) {
+	ctx := _context.Background()
+	tmpFile, _ := os.CreateTemp(os.TempDir(), "dbtest*.json")
+	tmpFile.Close()
+
+	s := &FileDB{
+		fileName: tmpFile.Name(),
+	}
+	uuid.SetRand(rand.New(rand.NewSource(1)))
+
+	tests := []struct {
+		name    string
+		args    func(s *FileDB)
+		want    domain.Stats
+		wantErr bool
+	}{
+		{
+			name: "Get zeros",
+			args: func(s *FileDB) {},
+			want: domain.Stats{
+				URLs:  0,
+				Users: 0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Get non zero stats",
+			args: func(s *FileDB) {
+				s.Store(ctx, domain.URL{
+					UserID: "DoomGuy1",
+					Full:   "http://iddqd1.com",
+					Short:  "idkfa1",
+				})
+				s.Store(ctx, domain.URL{
+					UserID: "DoomGuy2",
+					Full:   "http://iddqd2.com",
+					Short:  "idkfa2",
+				})
+			},
+			want: domain.Stats{
+				URLs:  2,
+				Users: 2,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Get error on corrupted file",
+			args: func(s *FileDB) {
+				f, _ := os.OpenFile(s.fileName, os.O_RDWR, 0644)
+				f.Truncate(50)
+			},
+			want:    domain.Stats{},
+			wantErr: true,
+		},
+		{
+			name: "Filename is wrong",
+			args: func(s *FileDB) {
+				s.fileName = ""
+			},
+			want:    domain.Stats{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.args(s)
+			result, err := s.GetStats(ctx)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			assert.EqualValues(t, tt.want, result)
+		})
+	}
+	os.Remove(tmpFile.Name())
 }

@@ -92,7 +92,7 @@ func TestNewStorage(t *testing.T) {
 					ServerAddress:   "127.0.0.1",
 					BaseURL:         "http://short.go",
 					FileStoragePath: "",
-					DatabaseDSN:     "dummyDb",
+					DatabaseDSN:     "postgres://postgres:postgres@0.0.0.0:5432/praktikum",
 				},
 			},
 			want: want{
